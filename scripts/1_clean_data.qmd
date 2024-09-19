@@ -1,0 +1,89 @@
+---
+title: "Clean Data"
+author: "Andreas Eich"
+format: html
+editor: visual
+---
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(readxl) # read Excel files
+library(janitor) # clean up column names
+```
+
+### Read data
+
+```{r}
+dat <- read_excel(here("data/raw/2024_09_17_Ashmorebehaviour_new.xlsx")) %>% 
+  clean_names()
+```
+
+### Clean data
+
+-   Filter by families
+
+-   combine `habitat` levels
+
+-   reorder factor levels for `size_class`
+
+-   filter columns
+
+```{r}
+dat <- dat %>% 
+  filter(family %in% c("Lutjanidae", "Carangidae", "Serranidae", "Lethrinidae")) %>% 
+  mutate(year = factor(year),
+         size_class = fct_relevel(size_class, c("<50", "50-100", ">100")),
+         habitat = recode(habitat, 
+                          "Sand" = "near reef",
+                          "Other" = "near reef",
+                          "Reef" = "reef",
+                          )) %>% 
+  filter(!is.na(size_class)) %>% 
+  select(video,
+         year,
+         depth,
+         habitat,
+         treatment,
+         genus_species,
+         size_class,
+         passing_time_sec,
+         feeding_time_sec,
+         investigating_time_sec, 
+         circling_time_sec,
+         bout,
+         bite,
+         total_time_shark_present_frame,
+         n_frame_total)
+```
+
+Divide in data for before/after analysis
+
+-   change order of levels for `treatment`
+
+```{r}
+dat_before_after <- dat %>% 
+  filter(treatment != "absent") %>% 
+  mutate(treatment = fct_relevel(treatment, c("before", "after"))) %>% 
+  droplevels()
+```
+
+Divide in data for absent/before analysis
+
+```{r}
+dat_absent_before <- dat %>% 
+  filter(treatment != "after") %>% 
+  droplevels()
+```
+
+Write data as `.csv` to share and `.rds` to keep formatting
+
+```{r}
+write.csv(dat_before_after, file = here("data/clean/dat_before_after.csv"), row.names = F)
+write_rds(dat_before_after, file = here("data/clean/dat_before_after.rds"))
+
+write.csv(dat_absent_before, file = here("data/clean/dat_absent_before.csv"), row.names = F)
+write_rds(dat_absent_before, file = here("data/clean/dat_absent_before.rds"))
+```
