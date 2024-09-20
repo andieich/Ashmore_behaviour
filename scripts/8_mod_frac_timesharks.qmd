@@ -53,7 +53,7 @@ dat_frac_sharkL <- dat_frac_sharkW %>%
 dat_frac_sharkL %>% 
   ggplot(aes(x = log(total_time_shark_present_frame), y = perc, col = type))+
   geom_point()+
-  geom_smooth()+
+  geom_smooth(method = "lm")+
   facet_grid(size_class~year)+
   theme_clean()
 ```
@@ -205,11 +205,11 @@ summary(fit_frac_shark_L)#ok
 #dirichlet_r2(fit_frac_shark_L)# takes some time
 ```
 
-frac_circ_invT	0.01811564			
+frac_circ_invT 0.01811564
 
-frac_passingT	0.01991542			
+frac_passingT 0.01991542
 
-frac_feedingT	0.03335447	
+frac_feedingT 0.03335447
 
 ```{r}
 epred_frac_shark_L <-  epred_draws(
