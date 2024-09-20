@@ -496,7 +496,7 @@ epred_frac_be_af_SM_depthS %>%
                                     "passing_frac"= "frac_passingT"),
                       log_depth = log(depth)),
              aes(y = perc*100, col = .category))+
-  facet_wrap(~.category)+
+  facet_grid(year~.category)+
   theme_clean()
 ```
 
@@ -545,7 +545,7 @@ epred_frac_be_af_SM_depth_ntotS %>%
                                     "passing_frac"= "frac_passingT"),
                       log_n_frame_total = log(n_frame_total )),
              aes(y = perc*100, col = .category))+
-  facet_wrap(~.category)+
+  facet_grid(year~.category)+
   theme_clean()
 ```
 
