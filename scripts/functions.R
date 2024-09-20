@@ -55,14 +55,16 @@ compare_0 <- function(data, variable,  ...){
     stop("Number of draws differs per groups")
   }
   
-  # summariese data, extract fraction above and below 0, and filter for smaller fraction
+  # summarise data, extract fraction above and below 0, and filter for smaller fraction
   data %>% 
-    filter(!!variable > 0) %>% 
     group_by(!!!group_vars) %>% 
-    summarize(above = round(n()/n_draws, 4),
-              below = round((n_draws - n())/n_draws, 4)) %>% 
-    pivot_longer(above:below, names_to = "direction", values_to = "fraction") %>% 
-    filter(fraction < .5) %>% 
+    count(diff > 0) %>% 
+    clean_names() %>% 
+    mutate(diff_0 = ifelse(diff_0, "above", "below"),
+           frac = round(n/n_draws, 4)) %>% 
+    select(-n) %>% 
+    pivot_wider(names_from = diff_0, values_from = frac)%>% 
+    replace(is.na(.), 0) %>% 
     nice_table()
 }
 
