@@ -269,7 +269,7 @@ fit_bouts_ab_be_S <- brm(
   
 summary(fit_bouts_ab_be_S)#ok
 pp_check(fit_bouts_ab_be_S, ndraws = 100)
-bayes_R2(fit_bouts_ab_be_S)#0.75
+bayes_R2(fit_bouts_ab_be_S)#0.76
 ```
 
 #### Predict
