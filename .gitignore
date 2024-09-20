@@ -50,3 +50,6 @@ rsconnect/
 
 # Content of models folder
 models/*
+
+# Text folder
+text/
