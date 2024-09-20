@@ -493,7 +493,7 @@ epred_frac_ab_be_SM_depthS %>%
                                     "passing_frac"= "frac_passingT"),
                       log_depth = log(depth)),
              aes(y = perc*100, col = .category))+
-  facet_wrap(~.category)+
+  facet_grid(year~.category)+
   theme_clean()
 ```
 
@@ -542,7 +542,7 @@ epred_frac_ab_be_SM_depth_ntotS %>%
                                     "passing_frac"= "frac_passingT"),
                       log_n_frame_total = log(n_frame_total )),
              aes(y = perc*100, col = .category))+
-  facet_wrap(~.category)+
+  facet_wrap(year~.category)+
   theme_clean()
 ```
 
@@ -639,8 +639,12 @@ summary(fit_frac_ab_be_L)# 5 divergent transitions, Rhat ok
 ```
 
 ```{r}
-dirichlet_r2(fit_frac_ab_be_L)
+#irichlet_r2(fit_frac_ab_be_L)
 ```
+
+frac_circ_invT 0.10770538\
+frac_passingT 0.13704968\
+frac_feedingT 0.03291023
 
 Get expected values
 
