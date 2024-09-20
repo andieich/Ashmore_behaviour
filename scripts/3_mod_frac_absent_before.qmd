@@ -1,5 +1,5 @@
 ---
-title: "Model behaviour Percent Before <> After"
+title: "Model behaviour fractions absent <> before"
 author: "Andreas Eich"
 format: html
 editor: visual
@@ -23,15 +23,15 @@ source(here("scripts/functions.R"))
 ### Get data
 
 ```{r}
-dat <- readRDS(here("data/clean/dat_before_after.rds"))
+dat_frac_ab_be <- readRDS(here("data/clean/dat_absent_before.rds"))
 ```
 
--   Ccombine circling and investigating, calculate relative time of behavior types,
+-   Combine circling and investigating, calculate relative time of behavior types,
 
 -   Make long and wide data frame
 
 ```{r}
-dat_percW <- dat %>%
+dat_frac_ab_beW <- dat_frac_ab_be %>%
   mutate(investigating_circling_time_sec = circling_time_sec + investigating_time_sec,
          total_obs_sec = investigating_circling_time_sec + passing_time_sec + feeding_time_sec,
          investigating_circling_frac = investigating_circling_time_sec/total_obs_sec,
@@ -39,7 +39,7 @@ dat_percW <- dat %>%
          passing_frac = passing_time_sec/total_obs_sec)
          
 
-dat_percL <- dat_percW %>%
+dat_frac_ab_beL <- dat_frac_ab_beW %>%
   pivot_longer(c(investigating_circling_frac, 
                  feeding_frac, 
                  passing_frac), 
@@ -57,7 +57,7 @@ Table with number of observations, time spent feeding, per size class, year, and
 left_join(
   # combine 2 data frames:
   # Part 1: All data for total number of observations,, mean and cumulative feeding time, and mean percent tiem spent feeding
-  dat_percW %>%
+  dat_frac_ab_beW %>%
     group_by(size_class, year, treatment) %>%
     summarise(
       n_total = n(),
@@ -69,7 +69,7 @@ left_join(
     ),
   
   # Part 2: Filtered for feeding observations to get number of feeding observations
-  dat_percW %>%
+  dat_frac_ab_beW %>%
     filter(feeding_time_sec > 0) %>% #filter
     group_by(size_class, year, treatment) %>%
     summarise(n_feeding = n()),
@@ -101,7 +101,7 @@ left_join(
 Table with number of videos per year. Should be 12
 
 ```{r}
-dat_percW %>% 
+dat_frac_ab_beW %>% 
   select(year, video) %>% 
   unique() %>% 
   group_by(year) %>% 
@@ -120,7 +120,7 @@ Only 11 videos. Verified with original data:
 Table videos per size class
 
 ```{r}
-dat_percW %>% 
+dat_frac_ab_beW %>% 
   select(size_class, year, video) %>% 
   unique() %>% 
   group_by(size_class, year) %>% 
@@ -133,7 +133,7 @@ dat_percW %>%
 2004
 
 ```{r}
-dat_percL %>% 
+dat_frac_ab_beL %>% 
   filter(year == 2004) %>% 
   group_by(type, treatment, size_class, year) %>% 
   summarise(perc_mean = mean(perc, na.rm = T),
@@ -157,7 +157,7 @@ dat_percL %>%
 2016
 
 ```{r}
-dat_percL %>% 
+dat_frac_ab_beL %>% 
   filter(year == 2016) %>% 
   group_by(type, treatment, size_class, year) %>% 
   summarise(perc_mean = mean(perc, na.rm = T),
@@ -183,7 +183,7 @@ As Tenary plot
 Small
 
 ```{r}
-dat_percW %>%
+dat_frac_ab_beW %>%
   filter(size_class ==  "<50") %>%
   ggtern(aes(x = investigating_circling_frac, y = passing_frac, z = feeding_frac)) +
   geom_point(aes(col = year))+
@@ -194,7 +194,7 @@ dat_percW %>%
 Medium
 
 ```{r}
-dat_percW %>%
+dat_frac_ab_beW %>%
   filter(size_class ==  "50-100") %>%
   ggtern(aes(x = investigating_circling_frac, y = passing_frac, z = feeding_frac)) +
   geom_point(aes(col = year))+
@@ -205,7 +205,7 @@ dat_percW %>%
 Large
 
 ```{r}
-dat_percW %>%
+dat_frac_ab_beW %>%
   filter(size_class ==  ">100") %>%
   ggtern(aes(x = investigating_circling_frac, y = passing_frac, z = feeding_frac)) +
   geom_point(aes(col = year))+
@@ -220,7 +220,7 @@ dat_percW %>%
 -   Transform according to @douma2019
 
 ```{r}
-dat_model <- dat_percW %>% 
+dat_model_frac_ab_be <- dat_frac_ab_beW %>% 
 mutate(frac_circ_invT = transformD(investigating_circling_frac),
          frac_passingT = transformD(passing_frac),
          frac_feedingT = transformD(feeding_frac),
@@ -231,14 +231,28 @@ mutate(frac_circ_invT = transformD(investigating_circling_frac),
          frac_passingT = frac_passingT/frac_tot,
          frac_feedingT = frac_feedingT/frac_tot
          )
+
+
 ```
 
 Calculate logged values for continuous explanatory variables
 
 ```{r}
-dat_model <- dat_model %>% 
+dat_model_frac_ab_be <- dat_model_frac_ab_be %>% 
   mutate(log_n_frame_total = log(n_frame_total),
          log_depth = log(depth))
+```
+
+Divide into small&medium and large size class data set
+
+```{r}
+dat_model_frac_ab_be_SM <- dat_model_frac_ab_be %>% 
+  filter(size_class != ">100") %>% 
+  droplevels()
+
+dat_model_frac_ab_be_L <- dat_model_frac_ab_be %>% 
+  filter(size_class == ">100") %>% 
+  droplevels()
 ```
 
 #### Small & Medium Fish
@@ -252,15 +266,14 @@ Fit model Small an Medium size class
 -   random intercept only for response, not phi
 
 ```{r}
-fit_perc_SM <- brm(bf(cbind(frac_circ_invT, frac_passingT, frac_feedingT) ~ 
+fit_frac_ab_be_SM <- brm(bf(cbind(frac_circ_invT, frac_passingT, frac_feedingT) ~ 
                 factor(year)*treatment*size_class + 
                   s(log_n_frame_total) + 
                   habitat + 
                   s(log_depth) +
                   (1|video),
                 phi ~ factor(year)*treatment*size_class),
-           data = dat_model %>% 
-             filter(size_class != ">100"),
+           data = dat_model_frac_ab_be_SM,
            family =  dirichlet(),
            control = list(max_treedepth = 12, 
                           adapt_delta = 0.98),
@@ -271,28 +284,42 @@ fit_perc_SM <- brm(bf(cbind(frac_circ_invT, frac_passingT, frac_feedingT) ~
            seed = 123,
            file_refit = "on_change",
            threads = threading(2, static = T),
-           file = here("models/fit_perc_SM"),
+           file = here("models/fit_frac_ab_be_SM"),
            backend = "cmdstanr")
 ```
 
 ```{r}
-summary(fit_perc_SM)#1 divergent transition bit Rhat OK
-#plot(fit_perc_SM) # ok
+summary(fit_frac_ab_be_SM)# 4 divergent transitions but Rhat ok
+#plot(fit_frac_ab_be_SM) # ok
 ```
+
+Get R2 value per category
+
+```{r}
+#dirichlet_r2(fit_frac_ab_be_SM)#takes a while
+```
+
+frac_circ_invT 0.3116627\
+frac_passingT 0.3431775\
+frac_feedingT 0.1187646
 
 Get expected values
 
 ```{r}
-epred_perc_SM <-  epred_draws(
-  fit_perc_SM,
-  newdata = expand_grid(year = dat_model$year %>% unique(),
-                        treatment = dat_model$treatment %>% unique(),
-                        size_class = c("<50", "50-100"),
-                        habitat = dat_model$habitat %>% unique(),
-                        log_depth = dat_model$log_depth %>% mean(),
-                        log_n_frame_total = mean(dat_model$n_frame_total) %>% 
-                          log()),
-  re_formula = NA)
+epred_frac_ab_be_SM <-  epred_draws(
+  fit_frac_ab_be_SM,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_be_SM$year %>% unique(),
+    treatment = dat_model_frac_ab_be_SM$treatment %>% unique(),
+    size_class = c("<50", "50-100"),
+    habitat = dat_model_frac_ab_be_SM$habitat %>% unique(),
+    log_depth = mean(dat_model_frac_ab_be_SM$depth) %>% 
+      log(),
+    log_n_frame_total = mean(dat_model_frac_ab_be_SM$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+)
 ```
 
 Model Plots
@@ -300,7 +327,7 @@ Model Plots
 ```{r}
 cols_treat <- c("#FFDB6D", "#4E84C4")
 
-epred_perc_SM %>%
+epred_frac_ab_be_SM %>%
   ggplot(aes(x = .epred, y = year)) +
   stat_slab(size = .3,
             aes(fill = treatment),
@@ -324,7 +351,7 @@ As tenary plot. white lines are 89% CIs
 **Compare before after in one plot**
 
 ```{r}
-epred_perc_SM %>%
+epred_frac_ab_be_SM %>%
   pivot_wider(names_from = .category, values_from = .epred) %>%
   ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
   geom_point(aes(col = treatment), alpha = .1, shape = 1) +
@@ -351,10 +378,9 @@ epred_perc_SM %>%
 **Compare years in one plot**
 
 ```{r}
-
 cols_year <- c("#52854C", "#D16103")
 
-epred_perc_SM %>%
+epred_frac_ab_be_SM %>%
   pivot_wider(names_from = .category, values_from = .epred) %>%
   ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
   geom_point(aes(col = year), alpha = .1, shape = 1) +
@@ -370,18 +396,37 @@ epred_perc_SM %>%
   theme_tern_clean()
 ```
 
-Estimated value for difference between treatments. If positive, more time spent with respective behavior after shark appeared.
+```{r}
+epred_frac_ab_be_SM %>%
+  pivot_wider(names_from = .category, values_from = .epred) %>%
+  ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
+  geom_point(aes(col = year), alpha = .1, shape = 1) +
+  stat_confidence_tern(
+    aes(group = year),
+    col = "white",
+    breaks = c(0.89),
+    show.legend = F
+  ) +
+  scale_colour_manual(values = cols_year) +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
+  facet_grid( ~ size_class) +
+  theme_tern_clean()
+```
+
+No difference when comparing between year over for combined data (absent & before), but differences in 2016 *between* absent and before.
+
+Estimated value for difference between treatments. If positive, more time spent with respective behavior when sharks absent vs before shark arrival in videos with sharks
 
 ```{r}
-epred_perc_effect_SM <- epred_perc_SM %>%
+epred_frac_ab_be_SM_effect <- epred_frac_ab_be_SM %>%
   ungroup() %>% 
   dplyr::select(year, treatment, .draw, .epred,.category, size_class, habitat, log_n_frame_total, log_depth) %>%
   pivot_wider(names_from = treatment, values_from = .epred) %>%
-  mutate(diff = after - before)
+  mutate(diff = absent - before)
  
 
 
-epred_perc_effect_SM %>% 
+epred_frac_ab_be_SM_effect %>% 
   ggplot(aes(x = diff, y = year)) +
   geom_vline(xintercept = 0, linetype = "11", col = "grey")+
   stat_slab(alpha = 0.3, aes(fill = factor(year))) +
@@ -397,7 +442,7 @@ epred_perc_effect_SM %>%
 Compare distribution of expected values of effect to 0
 
 ```{r}
-epred_perc_effect_SM %>% 
+epred_frac_ab_be_SM_effect %>% 
   compare_0(variable = diff,
           size_class, year, .category)
 ```
@@ -405,22 +450,26 @@ epred_perc_effect_SM %>%
 Impact of depth
 
 ```{r}
-epred_perc_SM_depth <-  epred_draws(
-  fit_perc_SM,
-  newdata = expand_grid(year = dat_model$year %>% unique(),
-                        treatment = dat_model$treatment %>% unique(),
-                        size_class = c("<50", "50-100"),
-                        habitat = dat_model$habitat %>% unique(),
-                        log_depth = seq(min(dat_model$depth),
-                                        max(dat_model$depth),
-                                        length = 100) %>% 
-                          log(),
-                        log_n_frame_total = mean(dat_model$n_frame_total) %>% 
-                          log()),
-  re_formula = NA)
+epred_frac_ab_be_SM_depth <-  epred_draws(
+  fit_frac_ab_be_SM,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_be_SM$year %>% unique(),
+    treatment = dat_model_frac_ab_be_SM$treatment %>% unique(),
+    size_class = c("<50", "50-100"),
+    habitat = dat_model_frac_ab_be_SM$habitat %>% unique(),
+    log_depth = seq(
+      min(dat_model_frac_ab_be_SM$log_depth),
+      max(dat_model_frac_ab_be_SM$log_depth),
+      length = 100
+    ),
+    log_n_frame_total = mean(dat_model_frac_ab_be_SM$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+)
 
 
-epred_perc_SM_depthS <- epred_perc_SM_depth %>% 
+epred_frac_ab_be_SM_depthS <- epred_frac_ab_be_SM_depth %>% 
   group_by(.category, log_depth) %>% 
   summarise(median = median(.epred),
             l_66 = quantile(.epred, probs = (1-0.66)/2),
@@ -431,12 +480,12 @@ epred_perc_SM_depthS <- epred_perc_SM_depth %>%
             u95 = quantile(.epred, 0.975, na.rm = T),
       )
 
-epred_perc_SM_depthS %>%
+epred_frac_ab_be_SM_depthS %>%
   ggplot(aes(x = log_depth))+
   geom_hline(yintercept = 0, linetype = "11", col = "grey")+
   geom_ribbon(aes(ymin = l_89*100, ymax = u_89*100, fill = .category), alpha = .3)+
   geom_line(aes(y = median*100, col = .category), linewidth = 1, show.legend = F)+
-   geom_point(data = dat_percL %>% 
+   geom_point(data = dat_frac_ab_beL %>% 
                filter(size_class != ">100") %>% 
                mutate(.category = recode(type, 
                                     "feeding_frac"= "frac_feedingT",
@@ -451,22 +500,25 @@ epred_perc_SM_depthS %>%
 Impact of number of fish in frame
 
 ```{r}
-epred_perc_SM_n_tot <-  epred_draws(
-  fit_perc_SM,
-  newdata = expand_grid(year = dat_model$year %>% unique(),
-                        treatment = dat_model$treatment %>% unique(),
-                        size_class = c("<50", "50-100"),
-                        habitat = dat_model$habitat %>% unique(),
-                        log_depth = mean(dat_model$depth) %>% 
-                          log(),
-                        log_n_frame_total = seq(min(dat_model$n_frame_total),
-                                        max(dat_model$n_frame_total),
-                                        length = 100) %>% 
-                          log()),
-  re_formula = NA)
+epred_frac_ab_be_SM_depth_ntot <-  epred_draws(
+  fit_frac_ab_be_SM,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_be_SM$year %>% unique(),
+    treatment = dat_model_frac_ab_be_SM$treatment %>% unique(),
+    size_class = c("<50", "50-100"),
+    habitat = dat_model_frac_ab_be_SM$habitat %>% unique(),
+    log_depth = mean(dat_model_frac_ab_be_SM$depth) %>%
+      log(),
+    log_n_frame_total = seq(
+      min(dat_model_frac_ab_be_SM$log_n_frame_total),
+      max(dat_model_frac_ab_be_SM$log_n_frame_total),
+      length = 100
+    )),
+  re_formula = NA
+)
 
 
-epred_perc_SM_n_totS <- epred_perc_SM_n_tot %>% 
+epred_frac_ab_be_SM_depth_ntotS <- epred_frac_ab_be_SM_depth_ntot %>% 
   group_by(.category, log_n_frame_total) %>% 
   summarise(median = median(.epred),
             l_66 = quantile(.epred, probs = (1-0.66)/2),
@@ -477,12 +529,12 @@ epred_perc_SM_n_totS <- epred_perc_SM_n_tot %>%
             u95 = quantile(.epred, 0.975, na.rm = T),
       )
 
-epred_perc_SM_n_totS %>%
+epred_frac_ab_be_SM_depth_ntotS %>%
   ggplot(aes(x = log_n_frame_total))+
   geom_hline(yintercept = 0, linetype = "11", col = "grey")+
   geom_ribbon(aes(ymin = l_89*100, ymax = u_89*100, fill = .category), alpha = .3)+
   geom_line(aes(y = median*100, col = .category), linewidth = 1, show.legend = F)+
-   geom_point(data = dat_percL %>% 
+   geom_point(data = dat_frac_ab_beL %>% 
                filter(size_class != ">100") %>% 
                mutate(.category = recode(type, 
                                     "feeding_frac"= "frac_feedingT",
@@ -497,9 +549,7 @@ epred_perc_SM_n_totS %>%
 Impact of habitat
 
 ```{r}
-
-
-epred_perc_SM %>%
+epred_frac_ab_be_SM %>%
   pivot_wider(names_from = .category, values_from = .epred) %>%
   ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
   geom_point(aes(col = habitat), alpha = .1, shape = 1) +
@@ -522,7 +572,7 @@ epred_perc_SM %>%
 ```
 
 ```{r}
-epred_perc_SM %>%
+epred_frac_ab_be_SM %>%
   ggplot(aes(x = .epred, y = treatment)) +
   stat_slab(size = .3,
             aes(fill = habitat),
@@ -540,7 +590,7 @@ epred_perc_SM %>%
 ```
 
 ```{r}
-epred_perc_SM %>%
+epred_frac_ab_be_SM %>%
   ggplot(aes(x = .epred, y = 1)) +
   stat_slab(size = .3,
             aes(fill = habitat),
@@ -558,18 +608,17 @@ epred_perc_SM %>%
 
 #### Large fish
 
-#### A less complex model has to be used because number of observations low
+A less complex model has to be used because number of observations low
 
 ```{r}
-fit_perc_L <- brm(
+fit_frac_ab_be_L <- brm(
   cbind(frac_circ_invT, frac_passingT, frac_feedingT) ~
     factor(year) * treatment +
     s(log_n_frame_total) +
     habitat +
     s(log_depth) +
     (1 | video),
-  data = dat_model %>%
-    filter(size_class != ">100"),
+  data = dat_model_frac_ab_be_L,
   family =  dirichlet(),
   iter = 4000,
   warmup = 2000,
@@ -579,36 +628,43 @@ fit_perc_L <- brm(
   control = list(max_treedepth = 12, adapt_delta = 0.98),
   file_refit = "on_change",
   threads = threading(2, static = T),
-  file = here("models/fit_perc_L"),
+  file = here("models/fit_frac_ab_be_L"),
   backend = "cmdstanr"
 )
 ```
 
 ```{r}
-summary(fit_perc_L)# 5 divergent transitions, Rhat OK
-#plot(fit_perc_L) # OK
+summary(fit_frac_ab_be_L)# 5 divergent transitions, Rhat ok
+#plot(fit_frac_ab_be_L) # OK
+```
+
+```{r}
+dirichlet_r2(fit_frac_ab_be_L)
 ```
 
 Get expected values
 
 ```{r}
-epred_perc_L <-  epred_draws(
-  fit_perc_L,
-  newdata = expand_grid(year = dat_model$year %>% unique(),
-                        treatment = dat_model$treatment %>% unique(),
-                        habitat = dat_model$habitat %>% unique(),
-                        log_depth = dat_model$log_depth %>% mean(),
-                        log_n_frame_total = mean(dat_model$n_frame_total) %>% 
-                          log()),
+epred_frac_ab_be_L <-  epred_draws(
+  fit_frac_ab_be_L,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_be_L$year %>% unique(),
+    treatment = dat_model_frac_ab_be_L$treatment %>% unique(),
+    habitat = dat_model_frac_ab_be_L$habitat %>% unique(),
+    log_depth = mean(dat_model_frac_ab_be_L$depth) %>% 
+      log(),
+    log_n_frame_total = mean(dat_model_frac_ab_be_L$n_frame_total) %>%
+      log()
+  ),
   re_formula = NA
-) %>% 
+) %>%
   mutate(size_class = ">100")
 ```
 
 Model Plots
 
 ```{r}
-epred_perc_L %>%
+epred_frac_ab_be_L %>%
   ggplot(aes(x = .epred, y = year)) +
   stat_slab(size = .3,
             aes(fill = treatment),
@@ -621,7 +677,8 @@ epred_perc_L %>%
             slab_size = 0.5) +
   scale_colour_manual(values = cols_treat)+
   scale_fill_manual(values = cols_treat)+
-  facet_grid(~ .category)
+  facet_grid(~ .category)+
+  theme_clean()
 ```
 
 As tenary plot. white lines are 89% CIs
@@ -629,7 +686,7 @@ As tenary plot. white lines are 89% CIs
 **Compare before after in one plot**
 
 ```{r}
-epred_perc_L %>%
+epred_frac_ab_be_L %>%
   pivot_wider(names_from = .category, values_from = .epred) %>%
   ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
   geom_point(aes(col = treatment), alpha = .1, shape = 1) +
@@ -656,7 +713,7 @@ epred_perc_L %>%
 **Compare years in one plot**
 
 ```{r}
-epred_perc_L %>%
+epred_frac_ab_be_L %>%
   pivot_wider(names_from = .category, values_from = .epred) %>%
   ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
   geom_point(aes(col = year), alpha = .1, shape = 1) +
@@ -680,10 +737,10 @@ epred_perc_L %>%
   theme_tern_clean()
 ```
 
-Estimated value for difference between treatments. If positive, more time spent with respective behavior after shark appeared.
+Estimated value for difference between treatments. If positive, more time spent with respective behavior when sharks absent vs before shark arrival in videos with sharks
 
 ```{r}
-epred_perc_effect_L <- epred_perc_L %>%
+epred_frac_ab_be_L_effect <- epred_frac_ab_be_L %>%
   ungroup() %>%
   dplyr::select(year,
                 treatment,
@@ -694,11 +751,11 @@ epred_perc_effect_L <- epred_perc_L %>%
                 log_n_frame_total,
                 log_depth) %>%
   pivot_wider(names_from = treatment, values_from = .epred) %>%
-  mutate(diff = after - before)
+  mutate(diff = absent - before)
  
 
 
-epred_perc_effect_L %>%
+epred_frac_ab_be_L_effect %>%
   ggplot(aes(x = diff, y = year)) +
   geom_vline(xintercept = 0,
              linetype = "11",
@@ -719,7 +776,7 @@ epred_perc_effect_L %>%
 Compare distribution of expected values of effect to 0
 
 ```{r}
-epred_perc_effect_L %>% 
+epred_frac_ab_be_L_effect %>% 
   compare_0(variable = diff,
           year, .category)
 ```

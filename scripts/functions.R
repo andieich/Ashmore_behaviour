@@ -65,3 +65,59 @@ compare_0 <- function(data, variable,  ...){
     filter(fraction < .5) %>% 
     nice_table()
 }
+
+
+
+
+dirichlet_r2 <- function(model, plot = T){
+  
+  # Extract posterior samples of the fitted values
+  fitted_values <- posterior_epred(model)
+  
+  # Summarize the fitted values by taking the median across the draws
+  fitted_values_median <- apply(fitted_values, c(2, 3), median)
+  
+  # get observed data from model
+  observed_data <- model$data[,1]
+  
+  #get category names
+  category <- colnames(observed_data)
+  
+  # Initialize a vector to store R² values for each response variable
+  R2_dat <- data.frame(category = category,
+                   R2 = NA)
+  
+  # Calculate the squared correlation for each response variable
+  for (i in 1:ncol(observed_data)) {
+    correlation <- cor(observed_data[, i], fitted_values_median[, i])
+    R2_dat$R2[i] <- correlation^2
+
+  }
+  
+  #make a plot of observed vs predicted values
+  if(plot){
+    plot_pred_obs <- bind_rows(
+      data.frame(observed_data) %>% 
+        mutate(type = "observed",
+               row = 1:n()),
+      
+      data.frame(fitted_values_median) %>% 
+        mutate(type = "predicted",
+               row = 1:n())) %>% 
+      
+      pivot_longer(first(category):last(category), names_to = "category",values_to = "value") %>% 
+      pivot_wider(names_from = type, values_from = value) %>%
+      ggplot(aes(x = predicted, y = observed, col = category))+
+      geom_point()+
+      geom_smooth(method = "lm")+
+      facet_grid(~category)+
+      theme_clean()
+    
+    print(plot_pred_obs)
+  }
+  
+  # Print the R² values
+  return(R2_dat)
+  
+}
+
