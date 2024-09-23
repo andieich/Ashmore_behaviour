@@ -78,6 +78,14 @@ dat_absent_before <- dat %>%
   droplevels()
 ```
 
+Divide into absent after
+
+```{r}
+dat_absent_after <- dat %>% 
+  filter(treatment != "before") %>% 
+  droplevels()
+```
+
 Write data as `.csv` to share and `.rds` to keep formatting
 
 ```{r}
@@ -86,4 +94,7 @@ write_rds(dat_before_after, file = here("data/clean/dat_before_after.rds"))
 
 write.csv(dat_absent_before, file = here("data/clean/dat_absent_before.csv"), row.names = F)
 write_rds(dat_absent_before, file = here("data/clean/dat_absent_before.rds"))
+
+write.csv(dat_absent_after, file = here("data/clean/dat_absent_after.csv"), row.names = F)
+write_rds(dat_absent_after, file = here("data/clean/dat_absent_after.rds"))
 ```
