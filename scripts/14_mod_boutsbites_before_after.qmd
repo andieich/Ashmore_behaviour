@@ -74,7 +74,6 @@ Bites
 #     y = mean_bites,
 #     col = factor(treatment)
 #   )) +
-#   facet_grid(year ~ size_class , scales = "free") +
 #   theme_clean()
 ```
 
