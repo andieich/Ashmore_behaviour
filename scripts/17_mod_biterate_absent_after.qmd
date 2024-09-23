@@ -1,0 +1,204 @@
+---
+title: "Model bout rate"
+format: html
+editor: visual
+---
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(ggtern)
+library(kableExtra)
+library(janitor)
+
+# get custom functions
+source(here("scripts/functions.R"))
+```
+
+### Get data
+
+Sometimes bouts/bites \> 1 when feeding time = 0, sometimes feeding time \> 0 but bout/bites = 0
+
+```{r}
+dat_frate_ab_af <- readRDS(here("data/clean/dat_absent_after.rds")) %>% 
+  filter(bite > 0, 
+         feeding_time_sec > 0)
+
+dat_frate_ab_af <- dat_frate_ab_af %>% 
+  mutate(log_n_frame_total = log(n_frame_total),
+         log_depth = log(depth))
+
+dat_frate_ab_af <- dat_frate_ab_af %>% 
+  mutate(frate = bite/feeding_time_sec)
+```
+
+Bouts per min
+
+```{r}
+dat_frate_ab_af %>%
+   group_by(size_class, treatment, year) %>%
+  #mean feeding time per group
+  summarise(
+    mean_frate = mean(frate, na.rm = T),
+    sd = sd(frate, na.rm = T),
+    n = n(),
+    se = ifelse(n >= 3, sd / sqrt(n), NA)
+  ) %>%
+  ggplot() +
+  geom_errorbar(aes(
+    x = treatment,
+    ymin = mean_frate - se,
+    ymax = mean_frate + se,
+    col = factor(treatment),
+    width = .4
+  )) +
+  geom_point(aes(
+    x = treatment,
+    y = mean_frate,
+    col = factor(treatment)
+  )) +
+  facet_grid(year ~ size_class , scales = "free") +
+  theme_clean()
+```
+
+Bite rate per video
+
+```{r}
+
+dat_frate_ab_af %>%
+  group_by(size_class, treatment, year, video) %>%
+  summarise(frate_per_video = mean(frate)) %>% 
+   group_by(size_class, treatment, year) %>%
+  #mean feeding time per group
+  summarise(
+    mean_frate = mean(frate_per_video, na.rm = T),
+    sd = sd(frate_per_video, na.rm = T),
+    n = n(),
+    se = ifelse(n >= 3, sd / sqrt(n), NA)
+  ) %>%
+  ggplot() +
+  geom_errorbar(aes(
+    x = treatment,
+    ymin = mean_frate - se,
+    ymax = mean_frate + se,
+    col = factor(treatment),
+    width = .4
+  )) +
+  geom_point(aes(
+    x = treatment,
+    y = mean_frate,
+    col = factor(treatment)
+  )) +
+  facet_grid(year ~ size_class , scales = "free") +
+  theme_clean()
+
+```
+
+Only focus on small fish
+
+```{r}
+dat_frate_ab_af_S_16 <- dat_frate_ab_af %>% 
+  filter(size_class == "<50", year == 2016) %>% 
+  droplevels()
+```
+
+focus on 2016, smooth not possible
+
+```{r}
+fit_frate_ab_af_S_16 <- brm(frate ~  treatment +
+    (1 | video),
+  family = Gamma(),
+  data = dat_frate_ab_af_S_16,
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/dat_frate_ab_af_S"),
+  backend = "cmdstanr"
+)
+```
+
+```{r}
+summary(fit_frate_ab_af_S_16)#4
+bayes_R2(fit_frate_ab_af_S_16)#0.6791695
+pp_check(fit_frate_ab_af_S_16, ndraws = 100)
+```
+
+```{r}
+epred_frate_ab_af_S_16 <-  epred_draws(
+  fit_frate_ab_af_S_16,
+  newdata = expand_grid(
+    treatment = dat_frate_ab_af_S_16$treatment %>% unique(),
+    habitat = dat_frate_ab_af_S_16$habitat %>% unique(),
+    log_depth = mean(dat_frate_ab_af_S_16$depth) %>% 
+      log(),
+    log_n_frame_total = mean(dat_frate_ab_af_S_16$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+)
+```
+
+```{r}
+cols_treat <- c("#FFDB6D", "#4E84C4")
+
+epred_frate_ab_af_S_16 %>%
+  ggplot(aes(x = .epred, y = 1)) +
+  stat_slab(size = .3,
+            aes(fill = treatment),
+            slab_size = 0.5, 
+            alpha = 0.3) +
+  stat_slab(show.legend = F, 
+            size = .3,
+            fill = NA, 
+            aes(colour = treatment), 
+            slab_size = 0.5) +
+  scale_colour_manual(values = cols_treat)+
+  scale_fill_manual(values = cols_treat)+
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1)))+
+  theme_clean()
+```
+
+```{r}
+epred_frate_ab_af_S_16_effect <- epred_frate_ab_af_S_16 %>%
+  ungroup() %>%
+  dplyr::select(
+                treatment,
+                habitat,
+                log_n_frame_total,
+                log_depth,
+                .draw,
+                .epred) %>%
+  pivot_wider(names_from = treatment,
+              values_from = .epred) %>%
+  mutate(diff = after - absent)
+```
+
+```{r}
+cols_year <- c("#52854C", "#D16103")
+
+
+epred_frate_ab_af_S_16_effect %>% 
+  ggplot(aes(x = diff, y = 1)) +
+  geom_vline(xintercept = 0, linetype = "11", col = "grey")+
+  stat_slab(alpha = 0.3) +
+  stat_slab(show.legend = F,size = .5,  fill = NA ) +
+  scale_colour_manual(values = cols_year) +
+  scale_fill_manual(values = cols_year) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1))) +
+  theme_clean()
+```
+
+```{r}
+epred_frate_ab_af_S_16_effect %>% 
+  compare_0(variable = diff)
+```
