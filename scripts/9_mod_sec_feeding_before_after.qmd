@@ -1,0 +1,313 @@
+---
+title: "Model absolute feeding time Before <> After"
+format: html
+editor: visual
+---
+
+## 
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(ggtern)
+library(kableExtra)
+
+# get custom functions
+source(here("scripts/functions.R"))
+```
+
+### Get data
+
+```{r}
+dat_fsec_be_af <- readRDS(here("data/clean/dat_before_after.rds")) 
+
+dat_fsec_be_af <- dat_fsec_be_af %>% 
+  mutate(log_n_frame_total = log(n_frame_total),
+         log_depth = log(depth))
+
+dat_fsec_be_af <- dat_fsec_be_af %>% 
+  mutate(log_n_frame_total = log(n_frame_total),
+         log_depth = log(depth))
+```
+
+### Raw Data
+
+Mean feeding time **per video** ± SE
+
+```{r}
+dat_fsec_be_af %>%
+  group_by(size_class, treatment, year, video) %>%
+  #mean feeding time per video
+    summarise(mean_fsec_video = mean(feeding_time_sec, na.rm = T)) %>%
+   group_by(size_class, treatment, year) %>%
+  #mean feeding time per group
+  summarise(
+    mean_fsec = mean(mean_fsec_video, na.rm = T),
+    sd = sd(mean_fsec_video, na.rm = T),
+    n = n(),
+    se = ifelse(n >= 3, sd / sqrt(n), NA)
+  ) %>%
+  ggplot() +
+  geom_errorbar(aes(
+    x = treatment,
+    ymin = mean_fsec - se,
+    ymax = mean_fsec + se,
+    col = factor(treatment),
+    width = .4
+  )) +
+  geom_point(aes(
+    x = treatment,
+    y = mean_fsec,
+    col = factor(treatment)
+  )) +
+  facet_grid(year ~ size_class , scales = "free") +
+  theme_clean()
+```
+
+Whats happening for medium fish 2004 before
+
+```{r}
+dat_fsec_be_af %>% 
+  filter(size_class == "50-100", year == 2004, treatment == "before") %>% 
+  summarise(range(feeding_time_sec))
+```
+
+Only 0
+
+And after?
+
+```{r}
+
+dat_fsec_be_af %>% 
+  filter(size_class == "50-100", year == 2004, treatment == "after") %>% 
+  view
+
+
+dat_fsec_be_af %>% 
+  filter(size_class == "50-100", year == 2004, treatment == "after") %>% 
+  summarise(range(feeding_time_sec))
+```
+
+8 obs \> 0, rest (n=50) = 0
+
+Mean feeding time **per group** ± SE
+
+```{r}
+dat_fsec_be_af %>%
+   group_by(size_class, treatment, year) %>%
+  #mean feeding time per group
+  summarise(
+    mean_fsec = mean(feeding_time_sec, na.rm = T),
+    sd = sd(feeding_time_sec, na.rm = T),
+    n = n(),
+    se = ifelse(n >= 3, sd / sqrt(n), NA)
+  ) %>%
+  ggplot() +
+  geom_errorbar(aes(
+    x = treatment,
+    ymin = mean_fsec - se,
+    ymax = mean_fsec + se,
+    col = factor(treatment),
+    width = .4
+  )) +
+  geom_point(aes(
+    x = treatment,
+    y = mean_fsec,
+    col = factor(treatment)
+  )) +
+  facet_grid(year ~ size_class , scales = "free") +
+  theme_clean()
+```
+
+Per video
+
+```{r}
+dat_fsec_be_af %>%
+  group_by(size_class, treatment, year, video) %>%
+  summarise(feeding_time_sec_per_video = mean(feeding_time_sec)) %>% 
+   group_by(size_class, treatment, year) %>%
+  #mean feeding time per group
+  summarise(
+    mean_fsec = mean(feeding_time_sec_per_video, na.rm = T),
+    sd = sd(feeding_time_sec_per_video, na.rm = T),
+    n = n(),
+    se = ifelse(n >= 3, sd / sqrt(n), NA)
+  ) %>%
+  ggplot() +
+  geom_errorbar(aes(
+    x = treatment,
+    ymin = mean_fsec - se,
+    ymax = mean_fsec + se,
+    col = factor(treatment),
+    width = .4
+  )) +
+  geom_point(aes(
+    x = treatment,
+    y = mean_fsec,
+    col = factor(treatment)
+  )) +
+  facet_grid(year ~ size_class , scales = "free") +
+  theme_clean()
+```
+
+```{r}
+hist(dat_fsec_be_af$feeding_time_sec, breaks = 40)
+```
+
+Try zero-inflated lognormal model
+
+```{r}
+dat_fsec_be_af_S <- dat_fsec_be_af %>%
+  filter(size_class == "<50")
+
+
+dat_fsec_be_af_M <- dat_fsec_be_af %>%
+  filter(size_class == "50-100")
+
+
+
+fit_fsec_be_af_S <- brm(
+  bf(
+    feeding_time_sec ~ factor(year) * treatment +
+      s(log_n_frame_total) + 
+                  habitat + 
+                  s(log_depth) +
+                  (1|video), 
+    hu ~ factor(year) * treatment
+  ),
+             control = list(max_treedepth = 14, 
+                          adapt_delta = 0.9),
+  family = hurdle_lognormal(),
+  data = dat_fsec_be_af_S,
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/fit_fsec_be_af_S"),
+  backend = "cmdstanr"
+)
+
+fit_fsec_be_af_M <- brm(
+  bf(
+    feeding_time_sec ~ factor(year) * treatment +
+      s(log_n_frame_total) + 
+                  habitat + 
+                  s(log_depth) +
+                  (1|video), 
+    hu ~ factor(year) * treatment,
+    decomp = "QR"
+  ),
+             control = list(max_treedepth = 14, 
+                          adapt_delta = 0.9),
+  family = hurdle_lognormal(),
+  data = dat_fsec_be_af_M,
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/fit_fsec_be_af_M"),
+  backend = "cmdstanr"
+)
+
+```
+
+```{r}
+summary(fit_fsec_be_af_S)#ok
+
+bayesplot::ppc_dens_overlay(y = log1p(dat_fsec_be_af_S$feeding_time_sec), 
+                            yrep = log1p(posterior_predict(fit_fsec_be_af_S)[1:10,]))
+
+bayes_R2(fit_fsec_be_af_S)#0.12
+```
+
+test: only medium sized fish, 2004
+
+```{r}
+
+fit_fsec_be_af_M_04 <- brm(
+  bf(
+    feeding_time_sec ~ treatment +
+                  (1|video), 
+    hu ~ treatment,
+    decomp = "QR"
+  ),
+       #      control = list(max_treedepth = 14, 
+        #                  adapt_delta = 0.9),
+  family = hurdle_lognormal(),
+  data = dat_fsec_be_af_M %>% 
+    filter(year == 2004),
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/fit_fsec_be_af_M_04"),
+  backend = "cmdstanr"
+)
+```
+
+```{r}
+summary(fit_fsec_be_af_M_04)#ok
+
+bayesplot::ppc_dens_overlay(y = log1p(dat_fsec_be_af_M$feeding_time_sec), 
+                            yrep = log1p(posterior_predict(fit_fsec_be_af_M_04)[1:10,]))
+
+bayes_R2(fit_fsec_be_af_M_04)#0.4
+```
+
+```{r}
+cols_treat <- c("#FFDB6D", "#4E84C4")
+
+dat_fsec_be_af_M_04 <- dat_fsec_be_af_M %>% 
+  filter(year == 2004)
+
+epred_fsec_be_af_M_04 <-  epred_draws(
+  fit_fsec_be_af_M_04,
+  newdata = expand_grid(
+    treatment = dat_fsec_be_af_M_04$treatment %>% unique(),
+    habitat = dat_fsec_be_af_M_04$habitat %>% unique(),
+    log_depth = mean(dat_fsec_be_af_M_04$depth) %>%
+      log(),
+    log_n_frame_total = mean(dat_fsec_be_af_M_04$n_frame_total) %>%
+      log()
+  ),
+  ,
+  re_formula = NA
+)
+
+epred_fsec_be_af_M <- epred_fsec_be_af_M %>% 
+  filter(.epred != Inf)
+```
+
+```{r}
+cols_treat <- c("#FFDB6D", "#4E84C4")
+
+epred_fsec_be_af_M_04 %>%
+  ggplot(aes(x = .epred, y = 1)) +
+  stat_slab(size = .3,
+            aes(fill = treatment),
+            slab_size = 0.5, 
+            alpha = 0.3) +
+  stat_slab(show.legend = F, 
+            size = .3,
+            fill = NA, 
+            aes(colour = treatment), 
+            slab_size = 0.5) +
+  scale_colour_manual(values = cols_treat)+
+  scale_fill_manual(values = cols_treat)+
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1)))+
+  theme_clean()
+```
