@@ -57,29 +57,25 @@ Not enough combinations of groups
 Bites
 
 ```{r}
-dat_bites_be_af %>%
-  group_by(size_class, treatment, year) %>%
-  summarise(
-    mean_bites = mean(bite, na.rm = T),
-    sd = sd(bite, na.rm = T),
-    n = n(),
-    se = ifelse(n >= 3, sd / sqrt(n), NA)
-  ) %>%
-  ggplot() +
-  geom_errorbar(aes(
-    x = treatment,
-    ymin = mean_bites - se,
-    ymax = mean_bites + se,
-    col = factor(treatment),
-    width = .4
-  )) +
-  geom_point(aes(
-    x = treatment,
-    y = mean_bites,
-    col = factor(treatment)
-  )) +
-  facet_grid(year ~ size_class , scales = "free") +
-  theme_clean()
+# dat_bites_be_af %>%
+#   group_by(size_class, treatment, year) %>%
+#   #mean feeding time per video
+#   summarise(mean_bites = mean(feeding_time_sec, na.rm = T)) %>%
+#   ggplot() +
+#   geom_errorbar(aes(
+#     x = treatment,
+#     ymin = mean_bites - se,
+#     ymax = mean_bites + se,
+#     col = factor(treatment),
+#     width = .4
+#   )) +
+#   geom_point(aes(
+#     x = treatment,
+#     y = mean_bites,
+#     col = factor(treatment)
+#   )) +
+#   facet_grid(year ~ size_class , scales = "free") +
+#   theme_clean()
 ```
 
 Bouts
