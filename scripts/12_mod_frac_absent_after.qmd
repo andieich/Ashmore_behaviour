@@ -1,0 +1,842 @@
+---
+title: "Model behaviour fractions Before <> After"
+author: "Andreas Eich"
+format: html
+editor: visual
+bibliography: references.bib
+---
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(ggtern)
+library(kableExtra)
+
+# get custom functions
+source(here("scripts/functions.R"))
+```
+
+### Get data
+
+```{r}
+dat_frac_ab_af <- readRDS(here("data/clean/dat_absent_after.rds"))
+```
+
+-   Combine circling and investigating, calculate relative time of behavior types,
+
+-   Make long and wide data frame
+
+```{r}
+dat_frac_ab_afW <- dat_frac_ab_af %>%
+  mutate(investigating_circling_time_sec = circling_time_sec + investigating_time_sec,
+         total_obs_sec = investigating_circling_time_sec + passing_time_sec + feeding_time_sec,
+         investigating_circling_frac = investigating_circling_time_sec/total_obs_sec,
+         feeding_frac = feeding_time_sec/total_obs_sec,
+         passing_frac = passing_time_sec/total_obs_sec)
+         
+
+dat_frac_ab_afL <- dat_frac_ab_afW %>%
+  pivot_longer(c(investigating_circling_frac, 
+                 feeding_frac, 
+                 passing_frac), 
+               names_to = "type", 
+               values_to = "perc")
+```
+
+### Overviews
+
+#### Feeding
+
+Table with number of observations, time spent feeding, per size class, year, and treatment
+
+```{r}
+left_join(
+  # combine 2 data frames:
+  # Part 1: All data for total number of observations,, mean and cumulative feeding time, and mean percent tiem spent feeding
+  dat_frac_ab_afW %>%
+    group_by(size_class, year, treatment) %>%
+    summarise(
+      n_total = n(),
+      sec_feeding = sum(feeding_time_sec, na.rm = T),
+      mean_feeding_sec = mean(feeding_time_sec, na.rm = T) %>%
+        round(2),
+      mean_feeding_perc = mean(feeding_frac * 100, na.rm = T) %>%
+        round(2)
+    ),
+  
+  # Part 2: Filtered for feeding observations to get number of feeding observations
+  dat_frac_ab_afW %>%
+    filter(feeding_time_sec > 0) %>% #filter
+    group_by(size_class, year, treatment) %>%
+    summarise(n_feeding = n()),
+  by = c("size_class", "year", "treatment")
+  
+) %>%
+  #select relevant columns
+  select(treatment,
+         n_total,
+         n_feeding,
+         sec_feeding,
+         mean_feeding_sec,
+         mean_feeding_perc) %>%
+  #replace NAs with 0s
+  replace(is.na(.), 0) %>%
+  ungroup() %>%
+  # group HTML table by size classes
+  select(-size_class) %>%
+  nice_table() %>%
+  pack_rows("<50", 1, 4) %>%
+  pack_rows("50-100", 5, 8) %>%
+  pack_rows(">100", 9, 12)
+```
+
+-   very low number ob observations for large size class \> separate model
+
+#### Videos
+
+Table with number of videos per year. Should be 12
+
+```{r}
+dat_frac_ab_afW %>% 
+  select(year, video) %>% 
+  unique() %>% 
+  group_by(year) %>% 
+  summarise(n_vid = n()) %>% 
+  nice_table()
+```
+
+Table videos per size class
+
+```{r}
+dat_frac_ab_afW %>% 
+  select(size_class, year, video) %>% 
+  unique() %>% 
+  group_by(size_class, year) %>% 
+  summarise(n_vid = n()) %>% 
+  nice_table()
+```
+
+### Plot raw data
+
+2004
+
+```{r}
+dat_frac_ab_afL %>% 
+  filter(year == 2004) %>% 
+  group_by(type, treatment, size_class, year) %>% 
+  summarise(perc_mean = mean(perc, na.rm = T),
+            sd = sd(perc, na.rm = T),
+            n = n(),
+            se = ifelse(n >=3, sd / sqrt(n), NA)) %>% 
+  ggplot()+
+  geom_errorbar(aes(x = treatment, 
+                    ymin = perc_mean - se, 
+                    ymax = perc_mean + se, 
+                    col = factor(treatment),
+                    width = .4))+
+  geom_point(aes(x = treatment, 
+                    y = perc_mean, 
+                    col = factor(treatment)))+
+  facet_grid(type ~size_class , scales = "free")+
+  ggtitle("2004")+
+  theme_clean()
+```
+
+2016
+
+```{r}
+dat_frac_ab_afL %>% 
+  filter(year == 2016) %>% 
+  group_by(type, treatment, size_class, year) %>% 
+  summarise(perc_mean = mean(perc, na.rm = T),
+            sd = sd(perc, na.rm = T),
+            n = n(),
+            se = ifelse(n >=3, sd / sqrt(n), NA)) %>% 
+  ggplot()+
+  geom_errorbar(aes(x = treatment, 
+                    ymin = perc_mean - se, 
+                    ymax = perc_mean + se, 
+                    col = factor(treatment),
+                    width = .4))+
+  geom_point(aes(x = treatment, 
+                    y = perc_mean, 
+                    col = factor(treatment)))+
+  facet_grid(type ~size_class , scales = "free")+
+  ggtitle("2016")+
+  theme_clean()
+```
+
+Feeding 2016, small
+
+```{r}
+dat_frac_ab_afL %>% 
+  filter(year == 2016, type == "feeding_frac", size_class == "<50") %>% 
+  group_by(type, treatment, size_class, year) %>% 
+  summarise(perc_mean = mean(perc, na.rm = T),
+            sd = sd(perc, na.rm = T),
+            n = n(),
+            se = ifelse(n >=3, sd / sqrt(n), NA)) %>% 
+  ggplot()+
+  geom_errorbar(aes(x = treatment, 
+                    ymin = perc_mean - se, 
+                    ymax = perc_mean + se, 
+                    col = factor(treatment),
+                    width = .4))+
+  geom_point(aes(x = treatment, 
+                    y = perc_mean, 
+                    col = factor(treatment)))+
+  ggtitle("2016 Small fish feeding")+
+  theme_clean()
+```
+
+As Tenary plot
+
+Small
+
+```{r}
+dat_frac_ab_afW %>%
+  filter(size_class ==  "<50") %>%
+  ggtern(aes(x = investigating_circling_frac, y = passing_frac, z = feeding_frac)) +
+  geom_point(aes(col = year))+
+  facet_grid(~treatment)+
+  theme_tern_clean()
+```
+
+Medium
+
+```{r}
+dat_frac_ab_afW %>%
+  filter(size_class ==  "50-100") %>%
+  ggtern(aes(x = investigating_circling_frac, y = passing_frac, z = feeding_frac)) +
+  geom_point(aes(col = year))+
+  facet_grid(~treatment)+
+  theme_tern_clean()
+```
+
+Large
+
+```{r}
+dat_frac_ab_afW %>%
+  filter(size_class ==  ">100") %>%
+  ggtern(aes(x = investigating_circling_frac, y = passing_frac, z = feeding_frac)) +
+  geom_point(aes(col = year))+
+  facet_grid(~treatment)+
+  theme_tern_clean()
+```
+
+### Model
+
+#### Prepare data
+
+-   Transform according to @douma2019
+
+```{r}
+dat_model_frac_ab_af <- dat_frac_ab_afW %>% 
+mutate(frac_circ_invT = transformD(investigating_circling_frac),
+         frac_passingT = transformD(passing_frac),
+         frac_feedingT = transformD(feeding_frac),
+         
+         frac_tot = frac_circ_invT + frac_passingT + frac_feedingT,
+         
+         frac_circ_invT = frac_circ_invT/frac_tot,
+         frac_passingT = frac_passingT/frac_tot,
+         frac_feedingT = frac_feedingT/frac_tot
+         )
+```
+
+Calculate logged values for continuous explanatory variables
+
+```{r}
+dat_model_frac_ab_af <- dat_model_frac_ab_af %>% 
+  mutate(log_n_frame_total = log(n_frame_total),
+         log_depth = log(depth))
+```
+
+Divide into small&medium and large size class data set
+
+```{r}
+dat_model_frac_ab_af_SM <- dat_model_frac_ab_af %>% 
+  filter(size_class != ">100") %>% 
+  droplevels()
+
+dat_model_frac_ab_af_L <- dat_model_frac_ab_af %>% 
+  filter(size_class == ">100") %>% 
+  droplevels()
+```
+
+#### Small & Medium Fish
+
+Fit model Small an Medium size class
+
+-   use default smooth for now
+
+-   smooth only for response, not phi
+
+-   random intercept only for response, not phi
+
+```{r}
+ fit_frac_ab_af_SM <- brm(bf(cbind(frac_circ_invT, frac_passingT, frac_feedingT) ~ 
+                factor(year)*treatment*size_class +
+                  s(log_n_frame_total) +
+                  habitat +
+                  s(log_depth) +
+                  (1|video),
+                phi ~ factor(year)*treatment*size_class),
+           data = dat_model_frac_ab_af_SM,
+           family =  dirichlet(),
+            control = list(max_treedepth = 12,
+                           adapt_delta = 0.98),
+           iter = 4000,
+           warmup = 2000,
+           chains = 4,
+           cores = 4,
+           seed = 123,
+           file_refit = "on_change",
+           threads = threading(2, static = T),
+           file = here("models/fit_frac_ab_af_SM"),
+           backend = "cmdstanr")
+
+```
+
+```{r}
+summary(fit_frac_ab_af_SM)#2 divergent transition bit Rhat OK
+#plot(fit_frac_ab_af_SM) # ok
+```
+
+Get R2 value per category
+
+```{r}
+dirichlet_r2(fit_frac_ab_af_SM)# takes some time
+```
+
+frac_circ_invT 0.22642098\
+frac_passingT 0.23863235\
+frac_feedingT 0.06727491
+
+Get expected values
+
+```{r}
+epred_frac_ab_af_SM <-  epred_draws(
+  fit_frac_ab_af_SM,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_af_SM$year %>% unique(),
+    treatment = dat_model_frac_ab_af_SM$treatment %>% unique(),
+    size_class = c("<50", "50-100"),
+    habitat = dat_model_frac_ab_af_SM$habitat %>% unique(),
+    log_depth = mean(dat_model_frac_ab_af_SM$depth) %>% 
+      log(),
+    log_n_frame_total = mean(dat_model_frac_ab_af_SM$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+)
+```
+
+Model Plots
+
+```{r}
+cols_treat <- c("#FFDB6D", "#4E84C4")
+
+epred_frac_ab_af_SM %>%
+  ggplot(aes(x = .epred, y = year)) +
+  stat_slab(size = .3,
+            aes(fill = treatment),
+            slab_size = 0.5, 
+            alpha = 0.3) +
+  stat_slab(show.legend = F, 
+            size = .3,
+            fill = NA, 
+            aes(colour = treatment), 
+            slab_size = 0.5) +
+  scale_colour_manual(values = cols_treat)+
+  scale_fill_manual(values = cols_treat)+
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1)))+
+  facet_grid(size_class ~ .category)+
+  theme_clean()
+```
+
+Plot Raw data and model data
+
+```{r}
+
+cols_year <- c("#52854C", "#D16103")
+
+epred_frac_ab_af_SM_S <- epred_frac_ab_af_SM %>%
+  group_by(.category, size_class, year, treatment) %>%
+  summarise(
+    median = median(.epred),
+    l_66 = quantile(.epred, probs = (1 - 0.66) / 2),
+    u_66 = quantile(.epred, probs = 1 - (1 - 0.66) / 2),
+    l_89 = quantile(.epred, probs = (1 - 0.89) / 2),
+    u_89 = quantile(.epred, probs = 1 - (1 - 0.89) / 2),
+    l95 = quantile(.epred, 0.025, na.rm = T),
+    u95 = quantile(.epred, 0.975, na.rm = T),
+  ) %>%
+  mutate(
+    type = dplyr::recode(
+      .category,
+      "frac_feedingT" = "feeding_frac",
+      "frac_circ_invT" = "investigating_circling_frac" ,
+       "frac_passingT" = "passing_frac"
+    )
+  ) 
+
+ggplot(data = dat_frac_ab_afL %>%
+         filter(size_class != ">100"),
+       aes(x = factor(year), 
+           col = treatment)) +
+  geom_point(aes(y = perc),
+             position = position_jitterdodge(jitter.width = .3, 
+                                             dodge.width = .5), 
+             alpha = .2)+
+  geom_errorbar(data = epred_frac_ab_af_SM_S, 
+             aes(ymin = l_89, ymax = u_89),
+             position = position_dodge(width = .5), 
+             width = 0,
+             size = 2)+
+  geom_point(data = epred_frac_ab_af_SM_S, 
+             aes(y = median),
+             position = position_dodge(width = .5), 
+             size = 2.5,
+             shape = 21,
+             fill = "white", 
+             linewidth = 1.)+
+  scale_colour_manual(values = cols_year) +
+  scale_fill_manual(values = cols_year) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1))) +
+  facet_grid(size_class ~ type, scales = "free") +
+  labs(x = NULL, y = "Fraction")+
+  #coord_flip()+
+  theme_clean()
+```
+
+As tenary plot. white lines are 89% CIs
+
+**Compare before after in one plot**
+
+```{r}
+epred_frac_ab_af_SM %>%
+  pivot_wider(names_from = .category, values_from = .epred) %>%
+  ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
+  geom_point(aes(col = treatment), alpha = .1, shape = 1) +
+  stat_confidence_tern(
+    aes(group = treatment),
+    col = "white",
+    breaks = c(0.89),
+    show.legend = F
+  ) +
+  labs(
+    x = "",
+    xarrow  = "Circling/Investigating",
+    y = "",
+    yarrow  = "Passing",
+    z = "",
+    zarrow  = "Feeding"
+  ) +
+  scale_colour_manual(values = cols_treat)+
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  facet_grid(size_class ~ year) +
+  theme_tern_clean()
+```
+
+**Compare years in one plot**
+
+```{r}
+
+
+
+epred_frac_ab_af_SM %>%
+  pivot_wider(names_from = .category, values_from = .epred) %>%
+  ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
+  geom_point(aes(col = year), alpha = .1, shape = 1) +
+  stat_confidence_tern(
+    aes(group = year),
+    col = "white",
+    breaks = c(0.89),
+    show.legend = F
+  ) +
+  scale_colour_manual(values = cols_year) +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
+  facet_grid(size_class ~ treatment) +
+  theme_tern_clean()
+```
+
+Estimated value for difference between treatments. If positive, more time spent with respective behavior after shark appeared.
+
+```{r}
+epred_frac_ab_af_SM_effect <- epred_frac_ab_af_SM %>%
+  ungroup() %>% 
+  dplyr::select(year, treatment, .draw, .epred,.category, size_class, habitat, log_n_frame_total, log_depth) %>%
+  pivot_wider(names_from = treatment, values_from = .epred) %>%
+  mutate(diff = after - absent)
+ 
+
+
+epred_frac_ab_af_SM_effect %>% 
+  ggplot(aes(x = diff, y = year)) +
+  geom_vline(xintercept = 0, linetype = "11", col = "grey")+
+  stat_slab(alpha = 0.3, aes(fill = factor(year))) +
+  stat_slab(show.legend = F,size = .5,  fill = NA ,  aes(col = factor(year))) +
+  scale_colour_manual(values = cols_year) +
+  scale_fill_manual(values = cols_year) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1))) +
+  facet_grid(size_class ~ .category, scales = "free")+
+  theme_clean()
+```
+
+Compare distribution of expected values of effect to 0
+
+```{r}
+epred_frac_ab_af_SM_effect %>% 
+  compare_0(variable = diff,
+          size_class, year, .category)
+```
+
+Impact of depth
+
+```{r}
+epred_frac_ab_af_SM_depth <-  epred_draws(
+  fit_frac_ab_af_SM,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_af_SM$year %>% unique(),
+    treatment = dat_model_frac_ab_af_SM$treatment %>% unique(),
+    size_class = c("<50", "50-100"),
+    habitat = dat_model_frac_ab_af_SM$habitat %>% unique(),
+    log_depth = seq(
+      min(dat_model_frac_ab_af_SM$log_depth),
+      max(dat_model_frac_ab_af_SM$log_depth),
+      length = 100
+    ),
+    log_n_frame_total = mean(dat_model_frac_ab_af_SM$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+)
+
+
+epred_frac_ab_af_SM_depthS <- epred_frac_ab_af_SM_depth %>% 
+  group_by(.category, log_depth) %>% 
+  summarise(median = median(.epred),
+            l_66 = quantile(.epred, probs = (1-0.66)/2),
+            u_66 = quantile(.epred, probs = 1 - (1-0.66)/2),
+            l_89 = quantile(.epred, probs = (1-0.89)/2),
+            u_89 = quantile(.epred, probs = 1-(1-0.89)/2),
+            l95 = quantile(.epred, 0.025, na.rm = T),
+            u95 = quantile(.epred, 0.975, na.rm = T),
+      )
+
+epred_frac_ab_af_SM_depthS %>%
+  ggplot(aes(x = log_depth))+
+  geom_hline(yintercept = 0, linetype = "11", col = "grey")+
+  geom_ribbon(aes(ymin = l_89*100, ymax = u_89*100, fill = .category), alpha = .3)+
+  geom_line(aes(y = median*100, col = .category), linewidth = 1, show.legend = F)+
+   geom_point(data = dat_frac_ab_afL %>% 
+               filter(size_class != ">100") %>% 
+               mutate(.category = recode(type, 
+                                    "feeding_frac"= "frac_feedingT",
+                                    "investigating_circling_frac"= "frac_circ_invT",
+                                    "passing_frac"= "frac_passingT"),
+                      log_depth = log(depth)),
+             aes(y = perc*100, col = .category))+
+  facet_grid(year~.category)+
+  theme_clean()
+```
+
+Impact of number of fish in frame
+
+```{r}
+epred_frac_ab_af_SM_depth_ntot <-  epred_draws(
+  fit_frac_ab_af_SM,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_af_SM$year %>% unique(),
+    treatment = dat_model_frac_ab_af_SM$treatment %>% unique(),
+    size_class = c("<50", "50-100"),
+    habitat = dat_model_frac_ab_af_SM$habitat %>% unique(),
+    log_depth = mean(dat_model_frac_ab_af_SM$depth) %>%
+      log(),
+    log_n_frame_total = seq(
+      min(dat_model_frac_ab_af_SM$log_n_frame_total),
+      max(dat_model_frac_ab_af_SM$log_n_frame_total),
+      length = 100
+    )),
+  re_formula = NA
+)
+
+
+epred_frac_ab_af_SM_depth_ntotS <- epred_frac_ab_af_SM_depth_ntot %>% 
+  group_by(.category, log_n_frame_total) %>% 
+  summarise(median = median(.epred),
+            l_66 = quantile(.epred, probs = (1-0.66)/2),
+            u_66 = quantile(.epred, probs = 1 - (1-0.66)/2),
+            l_89 = quantile(.epred, probs = (1-0.89)/2),
+            u_89 = quantile(.epred, probs = 1-(1-0.89)/2),
+            l95 = quantile(.epred, 0.025, na.rm = T),
+            u95 = quantile(.epred, 0.975, na.rm = T),
+      )
+
+epred_frac_ab_af_SM_depth_ntotS %>%
+  ggplot(aes(x = log_n_frame_total))+
+  geom_hline(yintercept = 0, linetype = "11", col = "grey")+
+  geom_ribbon(aes(ymin = l_89*100, ymax = u_89*100, fill = .category), alpha = .3)+
+  geom_line(aes(y = median*100, col = .category), linewidth = 1, show.legend = F)+
+   geom_point(data = dat_frac_ab_afL %>% 
+               filter(size_class != ">100") %>% 
+               mutate(.category = recode(type, 
+                                    "feeding_frac"= "frac_feedingT",
+                                    "investigating_circling_frac"= "frac_circ_invT",
+                                    "passing_frac"= "frac_passingT"),
+                      log_n_frame_total = log(n_frame_total )),
+             aes(y = perc*100, col = .category))+
+  facet_grid(year~.category)+
+  theme_clean()
+```
+
+Impact of habitat
+
+```{r}
+epred_frac_ab_af_SM %>%
+  pivot_wider(names_from = .category, values_from = .epred) %>%
+  ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
+  geom_point(aes(col = habitat), alpha = .1, shape = 1) +
+  stat_confidence_tern(
+    aes(group = habitat),
+    col = "white",
+    breaks = c(0.89),
+    show.legend = F
+  ) +
+  labs(
+    x = "",
+    xarrow  = "Circling/Investigating",
+    y = "",
+    yarrow  = "Passing",
+    z = "",
+    zarrow  = "Feeding"
+  ) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  theme_tern_clean()
+```
+
+```{r}
+epred_frac_ab_af_SM %>%
+  ggplot(aes(x = .epred, y = treatment)) +
+  stat_slab(size = .3,
+            aes(fill = habitat),
+            slab_size = 0.5, 
+            alpha = 0.3) +
+  stat_slab(show.legend = F, 
+            size = .3,
+            fill = NA, 
+            aes(colour = habitat), 
+            slab_size = 0.5) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1)))+
+  facet_grid(year ~ size_class + .category)+
+  theme_clean()
+```
+
+```{r}
+epred_frac_ab_af_SM %>%
+  ggplot(aes(x = .epred, y = 1)) +
+  stat_slab(size = .3,
+            aes(fill = habitat),
+            slab_size = 0.5, 
+            alpha = 0.3) +
+  stat_slab(show.legend = F, 
+            size = .3,
+            fill = NA, 
+            aes(colour = habitat), 
+            slab_size = 0.5) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         fill = guide_legend(override.aes = list(alpha = 1)))+
+  theme_clean()
+```
+
+#### Large fish
+
+A less complex model has to be used because number of observations low. Smoothing cannot be used because number of covariate combinations is too low
+
+```{r}
+fit_frac_ab_af_L <- brm(
+  cbind(frac_circ_invT, frac_passingT, frac_feedingT) ~
+    factor(year) * treatment +
+    log_n_frame_total +
+    habitat +
+    log_depth +
+    (1 | video),
+  data = dat_model_frac_ab_af_L,
+  family =  dirichlet(),
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  control = list(max_treedepth = 12, adapt_delta = 0.98),
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/fit_frac_ab_af_L"),
+  backend = "cmdstanr"
+)
+```
+
+```{r}
+summary(fit_frac_ab_af_L)# OK
+#plot(fit_frac_ab_af_L) # OK
+```
+
+```{r}
+dirichlet_r2(fit_frac_ab_af_L)
+```
+
+frac_circ_invT	0.1123712			
+
+frac_passingT	0.1404069			
+
+frac_feedingT	0.1103331	
+
+Get expected values
+
+```{r}
+epred_frac_ab_af_L <-  epred_draws(
+  fit_frac_ab_af_L,
+  newdata = expand_grid(
+    year = dat_model_frac_ab_af_L$year %>% unique(),
+    treatment = dat_model_frac_ab_af_L$treatment %>% unique(),
+    habitat = dat_model_frac_ab_af_L$habitat %>% unique(),
+    log_depth = mean(dat_model_frac_ab_af_L$log_depth) %>% 
+      log(),
+    log_n_frame_total = mean(dat_model_frac_ab_af_L$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+) %>%
+  mutate(size_class = ">100")
+```
+
+Model Plots
+
+```{r}
+epred_frac_ab_af_L %>%
+  ggplot(aes(x = .epred, y = year)) +
+  stat_slab(size = .3,
+            aes(fill = treatment),
+            slab_size = 0.5, 
+            alpha = 0.3) +
+  stat_slab(show.legend = F, 
+            size = .3,
+            fill = NA, 
+            aes(colour = treatment), 
+            slab_size = 0.5) +
+  scale_colour_manual(values = cols_treat)+
+  scale_fill_manual(values = cols_treat)+
+  facet_grid(~ .category)+
+  theme_clean()
+```
+
+As tenary plot. white lines are 89% CIs
+
+**Compare before after in one plot**
+
+```{r}
+epred_frac_ab_af_L %>%
+  pivot_wider(names_from = .category, values_from = .epred) %>%
+  ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
+  geom_point(aes(col = treatment), alpha = .1, shape = 1) +
+  stat_confidence_tern(
+    aes(group = treatment),
+    col = "white",
+    breaks = c(0.89),
+    show.legend = F
+  ) +
+  labs(
+    x = "",
+    xarrow  = "Circling/Investigating",
+    y = "",
+    yarrow  = "Passing",
+    z = "",
+    zarrow  = "Feeding"
+  ) +
+  scale_colour_manual(values = cols_treat) +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
+  facet_grid(~ year) +
+  theme_tern_clean()
+```
+
+**Compare years in one plot**
+
+```{r}
+epred_frac_ab_af_L %>%
+  pivot_wider(names_from = .category, values_from = .epred) %>%
+  ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
+  geom_point(aes(col = year), alpha = .1, shape = 1) +
+  stat_confidence_tern(
+    aes(group = year),
+    col = "white",
+    breaks = c(0.89),
+    show.legend = F
+  ) +
+  labs(
+    x = "",
+    xarrow  = "Circling/Investigating",
+    y = "",
+    yarrow  = "Passing",
+    z = "",
+    zarrow  = "Feeding"
+  ) +
+  scale_colour_manual(values = cols_year) +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
+  facet_grid(~ treatment) +
+  theme_tern_clean()
+```
+
+Estimated value for difference between treatments. If positive, more time spent with respective behavior when sharks absent vs before shark arrival in videos with sharks
+
+```{r}
+epred_frac_ab_af_L_effect <- epred_frac_ab_af_L %>%
+  ungroup() %>%
+  dplyr::select(year,
+                treatment,
+                .draw,
+                .epred,
+                .category,
+                habitat,
+                log_n_frame_total,
+                log_depth) %>%
+  pivot_wider(names_from = treatment, values_from = .epred) %>%
+  mutate(diff = after - absent)
+ 
+
+
+epred_frac_ab_af_L_effect %>%
+  ggplot(aes(x = diff, y = year)) +
+  geom_vline(xintercept = 0,
+             linetype = "11",
+             col = "grey") +
+  stat_slab(alpha = 0.3, aes(fill = factor(year))) +
+  stat_slab(
+    show.legend = F,
+    size = .5,
+    fill = NA ,
+    aes(col = factor(year))
+  ) +
+  scale_colour_manual(values = cols_year)+
+  scale_fill_manual(values = cols_year)+
+  facet_grid(~ .category, scales = "free") +
+  theme_clean()
+```
+
+Compare distribution of expected values of effect to 0
+
+Nothing
+
+```{r}
+epred_frac_ab_af_L_effect %>% 
+  compare_0(variable = diff,
+          year, .category)
+```
