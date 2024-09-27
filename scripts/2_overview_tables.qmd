@@ -1,0 +1,70 @@
+---
+title: "Overview Tables"
+author: "Andreas Eich"
+format: html
+editor: visual
+---
+
+Data
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(htmlTable)
+# get custom functions
+source(here("scripts/functions.R"))
+```
+
+### Get data
+
+```{r}
+data_overview <- readRDS(here("data/clean/clean_data.rds"))
+```
+
+### Overviews
+
+#### Number of videos
+
+```{r}
+data_overview %>% 
+  select(year, video, shark_in_video) %>% 
+  unique() %>% 
+  group_by(year, shark_in_video) %>% 
+  count()
+```
+
+#### Number of observations per size class
+
+Generate table with number of observations of each behavior type, total observations, per year and treatments
+
+```{r}
+data_overview %>% 
+  pivot_longer(sec_investigating_circling:sec_feeding, 
+               names_to = "behaviour_type", values_to = "seconds") %>% 
+  select(size_class, 
+         year, 
+         shark_in_video, 
+         behaviour_type,
+         seconds) %>% 
+  #make column for number of observations for each behaviour type
+  mutate(number_obs = ifelse(seconds > 0, 1, 0)) %>% 
+  select(-seconds) %>% 
+  #get sum of observations per behaviour_type, size_class, year, and shark_in_video,
+  group_by(year, shark_in_video, size_class, behaviour_type) %>% 
+  summarise(total_number_obs = sum(number_obs)) %>% 
+  #recode behaviour types
+  mutate(behaviour_type = str_replace(behaviour_type, "sec_", "")) %>% 
+  # make wide
+  pivot_wider(names_from = behaviour_type, values_from = total_number_obs) %>% 
+  #calculate total number of observation
+  mutate(total_obs = feeding + investigating_circling + passing) %>% 
+  relocate(size_class, year, shark_in_video) %>% 
+  arrange(size_class, year, shark_in_video) %>% 
+  # to html table to copy&paste
+  htmlTable(rnames = FALSE)
+
+
+  
+```
