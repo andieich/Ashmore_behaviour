@@ -14,8 +14,8 @@ theme_clean <- function(){
         strip.background = element_blank(),
         axis.line = element_line(colour = "black"),
         panel.background = element_rect(colour = "black", fill='transparent'),
-        legend.key = element_rect(fill = "transparent", 
-                                  linewidth = 0))
+        legend.key = element_rect(fill = "transparent",
+                                  color = 'transparent'))
 }
 
 theme_tern_clean <- function(){
