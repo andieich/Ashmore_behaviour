@@ -59,28 +59,111 @@ dat <- dat %>%
          n_frame_total)
 ```
 
-Divide in data for before/after analysis
+Divide in data for absent/after analysis
 
 -   change order of levels for `treatment`
-
-```{r}
-dat_before_after <- dat %>% 
-  filter(treatment != "absent") %>% 
-  mutate(treatment = fct_relevel(treatment, c("before", "after"))) %>% 
-  droplevels()
-```
 
 Select only `absent` and `after`
 
 ```{r}
-dat_absent_after <- dat %>% 
+dat <- dat %>% 
   filter(treatment != "before") %>% 
   droplevels()
+```
+
+Recode `size_class`
+
+```{r}
+dat <- dat %>% 
+  mutate(size_class = recode(
+    size_class,
+    "<50" = "Small",
+    "50-100" = "Medium",
+    ">100" = "Large"
+  ))
+```
+
+Relabel treatments to `absent` and `present` , rename to `shark_in_video`
+
+```{r}
+dat <- dat %>% 
+  mutate(treatment = recode(treatment, "after" = "present")) %>% 
+  rename("shark_in_video" = "treatment")
+```
+
+Combine investigating and circling to `investigating_circling`
+
+```{r}
+dat <- dat %>% 
+  mutate(sec_investigating_circling = investigating_time_sec + circling_time_sec) %>% 
+  select(-investigating_time_sec, -circling_time_sec)
+
+```
+
+Rename columns
+
+```{r}
+dat <- dat %>% 
+  rename("sec_feeding" = "feeding_time_sec",
+         "sec_passing" = "passing_time_sec")
+```
+
+Calculate total observation times and fractions of behavior
+
+```{r}
+dat <- dat %>% 
+  mutate(sec_total = sec_feeding + sec_passing + sec_investigating_circling,
+         frac_feeding = sec_feeding / sec_total,
+         frac_passing = sec_passing / sec_total,
+         frac_investigating_circling = sec_investigating_circling / sec_total)
+```
+
+Year to factor
+
+```{r}
+dat <- dat %>% 
+  mutate(year = factor(year))
+```
+
+Calculate `log_depth`, `log_n_frame_total`, and `log_total_time_shark_present_frame`
+
+```{r}
+dat <- dat %>% 
+  mutate(log_depth = log(depth),
+         log_n_frame_total = log(n_frame_total),
+         log_total_time_shark_present_frame = log(total_time_shark_present_frame))
+```
+
+Reorder
+
+```{r}
+dat <- dat %>% 
+  select(genus_species,
+         size_class,
+         year,
+         shark_in_video,
+         sec_investigating_circling,
+         sec_passing,
+         sec_feeding,
+         sec_total,
+         frac_investigating_circling,
+         frac_passing,
+         frac_feeding,
+         bout,
+         bite,
+         habitat,
+         depth,
+         log_depth,
+         total_time_shark_present_frame,
+         log_total_time_shark_present_frame,
+         n_frame_total,
+         log_n_frame_total,
+         video)
 ```
 
 Write data as `.csv` to share and `.rds` to keep formatting
 
 ```{r}
-write.csv(dat_absent_after, file = here("data/clean/dat_absent_after.csv"), row.names = F)
-write_rds(dat_absent_after, file = here("data/clean/dat_absent_after.rds"))
+write.csv(dat, file = here("data/clean/clean_data.csv"), row.names = F)
+write_rds(dat, file = here("data/clean/clean_data.rds"))
 ```
