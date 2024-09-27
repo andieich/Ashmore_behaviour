@@ -13,7 +13,9 @@ theme_clean <- function(){
         panel.grid.minor = element_blank(),
         strip.background = element_blank(),
         axis.line = element_line(colour = "black"),
-        panel.background = element_rect(colour = "black", fill='transparent'))
+        panel.background = element_rect(colour = "black", fill='transparent'),
+        legend.key = element_rect(fill = "transparent", 
+                                  linewidth = 0))
 }
 
 theme_tern_clean <- function(){
@@ -123,3 +125,8 @@ dirichlet_r2 <- function(model, plot = T){
   
 }
 
+# colours
+cols_sharks <- c("absent_Small" = "lightpink3",
+                 "present_Small" = "lightpink4",
+                 "absent_Medium" = "lemonchiffon3",
+                 "present_Medium" = "lemonchiffon4")
