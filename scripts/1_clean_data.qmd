@@ -80,7 +80,8 @@ dat <- dat %>%
     "<50" = "Small",
     "50-100" = "Medium",
     ">100" = "Large"
-  ))
+  )) %>% 
+  mutate(size_class = fct_relevel(size_class, c("Small", "Medium", "Large")))
 ```
 
 Relabel treatments to `absent` and `present` , rename to `shark_in_video`
