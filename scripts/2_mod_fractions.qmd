@@ -252,7 +252,7 @@ summary(fit_frac_ab_af_SM)#2 divergent transition bit Rhat OK
 Get R2 value per category
 
 ```{r}
-dirichlet_r2(fit_frac_ab_af_SM)# takes some time
+#dirichlet_r2(fit_frac_ab_af_SM)# takes some time
 ```
 
 frac_circ_invT 0.22642098\
@@ -306,7 +306,7 @@ Plot Raw data and model data
 
 ```{r}
 
-cols_year <- c("#52854C", "#D16103")
+cols_treat <- c("#4E84C4", "#C4961A")
 
 epred_frac_ab_af_SM_S <- epred_frac_ab_af_SM %>%
   group_by(.category, size_class, year, treatment) %>%
@@ -316,46 +316,73 @@ epred_frac_ab_af_SM_S <- epred_frac_ab_af_SM %>%
     u_66 = quantile(.epred, probs = 1 - (1 - 0.66) / 2),
     l_89 = quantile(.epred, probs = (1 - 0.89) / 2),
     u_89 = quantile(.epred, probs = 1 - (1 - 0.89) / 2),
-    l95 = quantile(.epred, 0.025, na.rm = T),
-    u95 = quantile(.epred, 0.975, na.rm = T),
+    l_95 = quantile(.epred, 0.025, na.rm = T),
+    u_95 = quantile(.epred, 0.975, na.rm = T),
   ) %>%
   mutate(
     type = dplyr::recode(
       .category,
-      "frac_feedingT" = "feeding_frac",
-      "frac_circ_invT" = "investigating_circling_frac" ,
-       "frac_passingT" = "passing_frac"
+      "frac_feedingT" = "Feeding",
+      "frac_circ_invT" = "Investigating & Circling" ,
+       "frac_passingT" = "Passing"
     )
   ) 
 
-ggplot(data = dat_frac_ab_afL %>%
-         filter(size_class != ">100"),
-       aes(x = factor(year), 
-           col = treatment)) +
-  geom_point(aes(y = perc),
-             position = position_jitterdodge(jitter.width = .3, 
-                                             dodge.width = .5), 
-             alpha = .2)+
-  geom_errorbar(data = epred_frac_ab_af_SM_S, 
-             aes(ymin = l_89, ymax = u_89),
-             position = position_dodge(width = .5), 
-             width = 0,
-             size = 2)+
-  geom_point(data = epred_frac_ab_af_SM_S, 
-             aes(y = median),
-             position = position_dodge(width = .5), 
-             size = 2.5,
-             shape = 21,
-             fill = "white", 
-             linewidth = 1.)+
-  scale_colour_manual(values = cols_year) +
-  scale_fill_manual(values = cols_year) +
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         fill = guide_legend(override.aes = list(alpha = 1))) +
+
+plot_frac <- ggplot(
+  data = dat_frac_ab_afL %>%
+    filter(size_class != ">100") %>%
+    mutate(
+      type = dplyr::recode(
+        type,
+        "feeding_frac" = "Feeding",
+        "investigating_circling_frac" = "Investigating & Circling" ,
+        "passing_frac" = "Passing"
+      )
+    ) ,
+  aes(x = factor(year), col = treatment)
+) +
+  geom_point(
+    aes(y = perc),
+    position = position_jitterdodge(jitter.width = .2, dodge.width = .7),
+    alpha = .2,
+    stroke = 0,
+    size = 2.5
+  ) +
+  geom_errorbar(
+    data = epred_frac_ab_af_SM_S,
+    aes(ymin = l_89, ymax = u_89),
+    position = position_dodge(width = .7),
+    width = 0,
+    size = 1.8
+  ) +
+    geom_errorbar(
+    data = epred_frac_ab_af_SM_S,
+    aes(ymin = l_95, ymax = u_95),
+    position = position_dodge(width = .7),
+    width = 0,
+    size = 1
+  ) +
+  geom_point(
+    data = epred_frac_ab_af_SM_S,
+    aes(y = median),
+    position = position_dodge(width = .7),
+    size = 2.5,
+    shape = 21,
+    fill = "white",
+    stroke = 1.5
+  ) +
+  scale_colour_manual(values = cols_treat) +
+  guides(color = guide_legend(override.aes = list(alpha = 1), title = "Treatment")) +
   facet_grid(size_class ~ type, scales = "free") +
-  labs(x = NULL, y = "Fraction")+
-  #coord_flip()+
-  theme_clean()
+  labs(x = NULL, y = "Fraction") +
+  theme_clean(); plot_frac
+
+
+ggsave(filename = "fractions.pdf",
+       plot = plot_frac, 
+       path = here("plots"),
+       width = 18, height = 12, units = "cm")
 ```
 
 As tenary plot. white lines are 89% CIs
@@ -363,35 +390,46 @@ As tenary plot. white lines are 89% CIs
 **Compare before after in one plot**
 
 ```{r}
-epred_frac_ab_af_SM %>%
+fractions_tenary <- epred_frac_ab_af_SM %>%
   pivot_wider(names_from = .category, values_from = .epred) %>%
   ggtern(aes(x = frac_circ_invT, y = frac_passingT, z = frac_feedingT)) +
-  geom_point(aes(col = treatment), alpha = .1, shape = 1) +
+  geom_point(
+    aes(col = treatment),
+    alpha = .1,
+    stroke = 0,
+    size = 2.5
+  ) +
+  
   stat_confidence_tern(
     aes(group = treatment),
     col = "white",
+    linetype = "11",
     breaks = c(0.89),
     show.legend = F
   ) +
   labs(
     x = "",
-    xarrow  = "Circling/Investigating",
+    xarrow  = "Circling & Investigating",
     y = "",
     yarrow  = "Passing",
     z = "",
     zarrow  = "Feeding"
   ) +
-  scale_colour_manual(values = cols_treat)+
-  guides(color = guide_legend(override.aes = list(alpha = 1)))+
+  scale_colour_manual(values = cols_treat) +
+  guides(color = guide_legend(override.aes = list(alpha = 1))) +
   facet_grid(size_class ~ year) +
-  theme_tern_clean()
+  theme_tern_clean(); fractions_tenary
+
+
+ggsave(filename = "fractions_tenary.pdf",
+       plot = fractions_tenary, 
+       path = here("plots"),
+       width = 18, height = 15, units = "cm")
 ```
 
 **Compare years in one plot**
 
 ```{r}
-
-
 
 epred_frac_ab_af_SM %>%
   pivot_wider(names_from = .category, values_from = .epred) %>%
