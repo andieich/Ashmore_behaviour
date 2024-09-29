@@ -239,7 +239,7 @@ plot_frac_SM <- ggplot(data = epred_frac_SM,
   scale_colour_manual(values = cols_sharks,
                       labels = c("absent", "absent", "present", "present")) +
   guides(color = guide_legend(override.aes = list(alpha = 1), title = "Shark")) +
-  labs(x = NULL, y = "Fraction") +
+  labs(x = NULL, y = "Fraction of total time in frame") +
   facet_grid(factor(size_class, levels = c("Small", "Medium")) ~ type, scales = "free") +
   theme_clean(); plot_frac_SM
 ```
@@ -418,7 +418,7 @@ plot_epred_frac_SM_ntotal <- ggplot(data = dat_fracL_SM, aes(x = log_n_frame_tot
                   fill = "lightblue", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
-  labs(x = "log(n fish in frame)", y = "Fraction")+
+  labs(x = "log(n fish in frame)", y = "Fraction of total time in frame")+
   theme_clean()+
   theme(legend.position = "none")
 
@@ -471,7 +471,7 @@ plot_epred_frac_SM_depth <- ggplot(data = dat_fracL_SM, aes(x = log_depth, col =
                   fill = "lightblue", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
-  labs(x = "log(depth)", y = "Fraction")+
+  labs(x = "log(depth)", y = "Fraction of total time in frame")+
   theme_clean()+
   theme(legend.position = "none")
 
@@ -584,7 +584,7 @@ plot_frac_L <- ggplot(data = epred_frac_L,
   scale_colour_manual(values = cols_sharks_L,
                       labels = c("absent", "present")) +
   guides(color = guide_legend(override.aes = list(alpha = 1), title = "Shark")) +
-  labs(x = NULL, y = "Fraction") +
+  labs(x = NULL, y = "Fraction of total time in frame") +
   facet_grid( ~ type, scales = "free") +
   theme_clean(); plot_frac_L
 ```
@@ -760,7 +760,7 @@ plot_epred_frac_L_ntotal <- ggplot(data = dat_fracL_L, aes(x = log_n_frame_total
                   fill = "lightblue", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
-  labs(x = "log(n fish in frame)", y = "Fraction")+
+  labs(x = "log(n fish in frame)", y = "Fraction of total time in frame")+
   theme_clean()+
   theme(legend.position = "none")
 
@@ -812,7 +812,7 @@ plot_epred_frac_L_depth <- ggplot(data = dat_fracL_L, aes(x = log_depth, col = t
                   fill = "lightblue", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
-  labs(x = "log(depth)", y = "Fraction")+
+  labs(x = "log(depth)", y = "Fraction of total time in frame")+
   theme_clean()+
   theme(legend.position = "none")
 
