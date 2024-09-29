@@ -33,6 +33,16 @@ dat_boutbite <- readRDS(here("data/clean/clean_data.rds")) %>%
   filter(bite > 0 & sec_feeding > 0)
 ```
 
+Check any bout = 0
+
+```{r}
+dat_boutbite %>% 
+  pull(bout) %>% 
+  min()
+```
+
+OK
+
 ### Raw Data
 
 #### Bites
