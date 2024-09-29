@@ -5,7 +5,6 @@ format: html
 editor: visual
 ---
 
-
 ### Libraries
 
 ```{r}
@@ -27,8 +26,11 @@ source(here("scripts/functions.R"))
 
 ### Get data
 
+Filter for data with bouts \> 0 and sec_feeding \> 0
+
 ```{r}
-dat_sec_feeding <- readRDS(here("data/clean/clean_data.rds"))
+dat_boutrate <- readRDS(here("data/clean/clean_data.rds")) %>% 
+  filter(bite > 0 & sec_feeding > 0)
 ```
 
 ### Raw Data
@@ -349,6 +351,7 @@ ggsave(filename = "sec_feeding_SM_depth.pdf",
        path = here("plots/SI"),
        width = 20, height = 15, units = "cm")
 ```
+
 No impact
 
 ```{r}
