@@ -298,7 +298,7 @@ plot_bouts_S <- ggplot(data = epred_bouts_S %>%
   ) +
   scale_colour_manual(values = cols_sharks_S) +
   guides(color = guide_legend(override.aes = list(alpha = 1), title = "Shark")) +
-  labs(x = NULL, y = "Bites") +
+  labs(x = NULL, y = "Bouts") +
   facet_grid( ~ size_class, scales = "free") +
   theme_clean(); plot_bouts_S
 ```
