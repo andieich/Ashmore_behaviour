@@ -417,7 +417,7 @@ ggsave(filename = "observationtime_L_ntotal.pdf",
 
 Slight increase
 
-##### Conditional effects for shark_in_video per habitat
+##### Conditional effects for depth
 
 ```{r}
 plot_epred_sec_total_L_depth <- plot_predictions(fit_sec_total_L, 
