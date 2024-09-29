@@ -439,4 +439,3 @@ ggsave(filename = "observationtime_L_depth.pdf",
 ```
 
 No effect
-

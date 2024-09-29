@@ -1,6 +1,5 @@
 ---
-s---
-title: "Model behaviour fractions Absent <> After"
+title: "Model Behaviour fractions Present <> Absent"
 author: "Andreas Eich"
 format: html
 editor: visual

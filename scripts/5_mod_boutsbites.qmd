@@ -1,5 +1,6 @@
 ---
-title: "Model bouts & bites Absent <> After"
+title: "Model Bites and Bouts Present <> Absent"
+author: "Andreas Eich"
 format: html
 editor: visual
 ---

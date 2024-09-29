@@ -1,10 +1,10 @@
 ---
-title: "Model absolute feeding time Before <> After"
+title: "Model Feeding Time Present <> Absent"
+author: "Andreas Eich"
 format: html
 editor: visual
 ---
 
-## 
 
 ### Libraries
 
