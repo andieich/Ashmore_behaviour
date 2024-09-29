@@ -422,7 +422,7 @@ plot_epred_frac_SM_ntotal <- ggplot(data = dat_fracL_SM, aes(x = log_n_frame_tot
   theme_clean()+
   theme(legend.position = "none")
 
-plot_epred_SM_ntotal
+plot_epred_frac_SM_ntotal
 
 ggsave(filename = "behavior_fractions_SM_ntotal.pdf",
        plot = plot_epred_frac_SM_ntotal, 
