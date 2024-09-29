@@ -230,19 +230,13 @@ emmeans(fit_bites_S, ~ shark_in_video |  year, type = "response") %>%
 
 Very weak effect in 2016
 
-### Models Bites Small
+### Models Bouts Small
 
 Only Small Fish, very few observations, only assess year \* shark_in_video
 
 ```{r}
-dat_boutbite_S <- dat_boutbite %>% 
-  filter(size_class == "Small") %>% 
-  select(-size_class)
-```
-
-```{r}
-fit_bites_S <- brm(
-  bite ~ year * shark_in_video + (1 | video),
+fit_bouts_S <- brm(
+  bout ~ year * shark_in_video + (1 | video),
   data = dat_boutbite_S,
   family = poisson(link = "log"),  
   control = list(max_treedepth = 16, adapt_delta = 0.99),
@@ -252,7 +246,7 @@ fit_bites_S <- brm(
   cores = 4,
   seed = 123,
   file_refit = "on_change",
-  file = here("models/fit_bites_S"),
+  file = here("models/fit_bouts_S"),
   threads = threading(2, static = T),
   backend = "cmdstanr"
 )
@@ -261,10 +255,10 @@ fit_bites_S <- brm(
 Assess Model
 
 ```{r}
-summary(fit_bites_S)#ok
-ppc_dens_overlay(y = log1p(dat_boutbite_S$bite),
-                 yrep = log1p(posterior_predict(fit_bites_S)[1:100, ]))
-bayes_R2(fit_bites_S)#0.5500921
+summary(fit_bouts_S)#ok
+ppc_dens_overlay(y = log1p(dat_boutbite_S$bout),
+                 yrep = log1p(posterior_predict(fit_bouts_S)[1:100, ]))
+bayes_R2(fit_bouts_S)#0.800257
 ```
 
 #### Plot Results for year shark_in_video size_class
@@ -272,7 +266,7 @@ bayes_R2(fit_bites_S)#0.5500921
 Get Emmeans values
 
 ```{r}
-epred_bites_S <- emmeans(fit_bites_S,
+epred_bouts_S <- emmeans(fit_bouts_S,
                               ~year * shark_in_video , 
                               typ = "response") %>%   
   gather_emmeans_draws() %>% 
@@ -282,15 +276,14 @@ epred_bites_S <- emmeans(fit_bites_S,
 Plot
 
 ```{r}
-
-plot_bites_S <- ggplot(data = epred_bites_S %>% 
+plot_bouts_S <- ggplot(data = epred_bouts_S %>% 
       mutate(size_class = "Small"), 
                                  aes(x = year, 
                                      col = shark_in_video)) +
   geom_point(
     data = dat_boutbite_S %>% 
       mutate(size_class = "Small"),
-    aes(y = bite),
+    aes(y = bout),
     position =  position_jitterdodge(jitter.width = .2, dodge.width = .7),
     alpha = .1,
     size = 3,
@@ -307,15 +300,15 @@ plot_bites_S <- ggplot(data = epred_bites_S %>%
   guides(color = guide_legend(override.aes = list(alpha = 1), title = "Shark")) +
   labs(x = NULL, y = "Bites") +
   facet_grid( ~ size_class, scales = "free") +
-  theme_clean(); plot_bites_S
+  theme_clean(); plot_bouts_S
 ```
 
 And save to SI, only small effect
 
 ```{r}
-ggsave(filename = "bites_S.pdf",
-       plot = plot_bites_S, 
-       path = here("plots/SI"),
+ggsave(filename = "bouts_S.pdf",
+       plot = plot_bouts_S, 
+       path = here("plots"),
        width = 15/1.7, height = 9, units = "cm")
 ```
 
@@ -323,13 +316,13 @@ ggsave(filename = "bites_S.pdf",
 
 ```{r}
 #plot
-emmeans(fit_bites_S, ~ shark_in_video |  year, type = "response") %>%
+emmeans(fit_bouts_S, ~ shark_in_video |  year, type = "response") %>%
   regrid() %>%
   pairs() %>% 
   plot()
 
 #table
-emmeans(fit_bites_S, ~ shark_in_video |  year, type = "response") %>%
+emmeans(fit_bouts_S, ~ shark_in_video |  year, type = "response") %>%
   regrid() %>%
   pairs() %>%
   gather_emmeans_draws() %>%
@@ -347,256 +340,4 @@ emmeans(fit_bites_S, ~ shark_in_video |  year, type = "response") %>%
 
 ```
 
-Very weak effect in 2016
-
-#### Predict
-
-```{r}
-pred_bites_ab_af_S <-  predicted_draws(
-  fit_bites_S,
-  newdata = expand_grid(
-    year = dat_boutbite_S$year %>% unique(),
-    treatment = dat_boutbite_S$treatment %>% unique()),
-  re_formula = NA
-)
-```
-
-```{r}
-cols_treat <- c("#FFDB6D", "#4E84C4")
-
-pred_bites_ab_af_S %>%
-  ggplot(aes(x = .prediction, y = year)) +
-  stat_slab(size = .3,
-            aes(fill = treatment),
-            slab_size = 0.5, 
-            alpha = 0.3) +
-  stat_slab(show.legend = F, 
-            size = .3,
-            fill = NA, 
-            aes(colour = treatment), 
-            slab_size = 0.5) +
-  scale_colour_manual(values = cols_treat)+
-  scale_fill_manual(values = cols_treat)+
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         fill = guide_legend(override.aes = list(alpha = 1)))+
-  theme_clean()
-```
-
-Expected values
-
-```{r}
-epred_bites_ab_af_S <-  epred_draws(
-  fit_bites_ab_af_S,
-  newdata = expand_grid(
-    year = dat_bites_ab_af_S$year %>% unique(),
-    treatment = dat_bites_ab_af_S$treatment %>% unique()),
-  re_formula = NA
-)
-```
-
-```{r}
-epred_bites_ab_af_S %>%
-  ggplot(aes(x = .epred, y = year)) +
-  stat_slab(size = .3,
-            aes(fill = treatment),
-            slab_size = 0.5, 
-            alpha = 0.3) +
-  stat_slab(show.legend = F, 
-            size = .3,
-            fill = NA, 
-            aes(colour = treatment), 
-            slab_size = 0.5) +
-  scale_colour_manual(values = cols_treat)+
-  scale_fill_manual(values = cols_treat)+
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         fill = guide_legend(override.aes = list(alpha = 1)))+
-  theme_clean()
-```
-
-```{r}
-epred_bites_ab_af_S_effect <- epred_bites_ab_af_S %>%
-  ungroup() %>%
-  dplyr::select(year,
-                treatment,
-                .draw,
-                .epred) %>%
-  pivot_wider(names_from = treatment, values_from = .epred) %>%
-  mutate(diff = after - absent)
-```
-
-```{r}
-cols_year <- c("#52854C", "#D16103")
-
-epred_bites_ab_af_S_effect %>% 
-  ggplot(aes(x = diff, y = 1)) +
-  geom_vline(xintercept = 0, linetype = "11", col = "grey")+
-  stat_slab(alpha = 0.3, aes(fill = factor(year))) +
-  stat_slab(show.legend = F,size = .5,  fill = NA ,  aes(col = factor(year))) +
-  scale_colour_manual(values = cols_year) +
-  scale_fill_manual(values = cols_year) +
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         fill = guide_legend(override.aes = list(alpha = 1))) +
-  theme_clean()
-```
-
-```{r}
-epred_bites_ab_af_S_effect %>% 
-  compare_0(variable = diff,
-          year)
-```
-
-Very weak effect in 2016
-
-Only year
-
-```{r}
-epred_bites_ab_af_S_year <- epred_bites_ab_af_S %>%
-  ungroup() %>%
-  dplyr::select(year,
-                treatment,
-                .draw,
-                .epred) %>%
-  pivot_wider(names_from = year, values_from = .epred) %>%
-  clean_names() %>% 
-  mutate(diff = x2016 - x2004)
-```
-
-```{r}
-epred_bites_ab_af_S_year %>% 
-  ggplot(aes(x = diff, y = 1)) +
-  geom_vline(xintercept = 0, linetype = "11", col = "grey")+
-  stat_slab(alpha = 0.3) +
-  stat_slab(show.legend = F,size = .5,  fill = NA ) +
-  theme_clean()
-```
-
-```{r}
-epred_bites_ab_af_S_year %>% 
-  compare_0(variable = diff)
-```
-
-Nothing
-
-### Models Bouts
-
-#### Small
-
-Smooth not possible, remove all covariates, not enough combinations
-
-```{r}
-fit_bouts_ab_af_S <- brm(
-  bout ~ factor(year) * treatment+(1|video),
-  data = dat_bites_ab_af_S,
-  family = poisson,  
-  control = list(max_treedepth = 12, adapt_delta = 0.98),
-  iter = 4000,
-  warmup = 2000,
-  chains = 4,
-  cores = 4,
-  seed = 123,
-  file_refit = "on_change",
-  file = here("models/fit_bouts_ab_af_S"),
-  threads = threading(2, static = T),
-  backend = "cmdstanr"
-)
-  
-summary(fit_bouts_ab_af_S)#ok
-pp_check(fit_bouts_ab_af_S, ndraws = 100)
-bayes_R2(fit_bouts_ab_af_S)#0.8004418
-```
-
-#### Predict
-
-```{r}
-pred_bouts_ab_af_S <-  predicted_draws(
-  fit_bouts_ab_af_S,
-  newdata = expand_grid(
-    year = dat_bites_ab_af_S$year %>% unique(),
-    treatment = dat_bites_ab_af_S$treatment %>% unique()),
-  re_formula = NA
-)
-```
-
-```{r}
-pred_bouts_ab_af_S %>%
-  ggplot(aes(x = .prediction, y = year)) +
-  stat_slab(size = .3,
-            aes(fill = treatment),
-            slab_size = 0.5, 
-            alpha = 0.3) +
-  stat_slab(show.legend = F, 
-            size = .3,
-            fill = NA, 
-            aes(colour = treatment), 
-            slab_size = 0.5) +
-  scale_colour_manual(values = cols_treat)+
-  scale_fill_manual(values = cols_treat)+
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         fill = guide_legend(override.aes = list(alpha = 1)))+
-  theme_clean()
-```
-
-Expected values
-
-```{r}
-epred_bouts_ab_af_S <-  epred_draws(
-  fit_bouts_ab_af_S,
-  newdata = expand_grid(
-    year = dat_bites_ab_af_S$year %>% unique(),
-    treatment = dat_bites_ab_af_S$treatment %>% unique()),
-  re_formula = NA
-)
-```
-
-```{r}
-epred_bouts_ab_af_S %>%
-  ggplot(aes(x = .epred, y = year)) +
-  stat_slab(size = .3,
-            aes(fill = treatment),
-            slab_size = 0.5, 
-            alpha = 0.3) +
-  stat_slab(show.legend = F, 
-            size = .3,
-            fill = NA, 
-            aes(colour = treatment), 
-            slab_size = 0.5) +
-  scale_colour_manual(values = cols_treat)+
-  scale_fill_manual(values = cols_treat)+
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         fill = guide_legend(override.aes = list(alpha = 1)))+
-  theme_clean()
-```
-
-Effect
-
-```{r}
-epred_bouts_ab_af_S_effect <- epred_bouts_ab_af_S %>%
-  ungroup() %>%
-  dplyr::select(year,
-                treatment,
-                .draw,
-                .epred) %>%
-  pivot_wider(names_from = treatment, values_from = .epred) %>%
-  mutate(diff = after - absent)
-```
-
-```{r}
-epred_bouts_ab_af_S_effect %>% 
-  ggplot(aes(x = diff, y = 1)) +
-  geom_vline(xintercept = 0, linetype = "11", col = "grey")+
-  stat_slab(alpha = 0.3, aes(fill = factor(year))) +
-  stat_slab(show.legend = F,size = .5,  fill = NA ,  aes(col = factor(year))) +
-  scale_colour_manual(values = cols_year) +
-  scale_fill_manual(values = cols_year) +
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         fill = guide_legend(override.aes = list(alpha = 1))) +
-  theme_clean()
-```
-
-```{r}
-epred_bouts_ab_af_S_effect %>% 
-  compare_0(variable = diff,
-          year)
-```
-
-2016, more bouts but only slightly more bites
+Effect in 2016
