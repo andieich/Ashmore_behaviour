@@ -1,0 +1,373 @@
+---
+title: "Model absolute feeding time Before <> After"
+format: html
+editor: visual
+---
+
+## 
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(ggtern)
+library(kableExtra)
+library(janitor)
+library(bayesplot)
+library(emmeans)
+library(marginaleffects)
+library(htmlTable)
+
+# get custom functions
+source(here("scripts/functions.R"))
+```
+
+### Get data
+
+```{r}
+dat_sec_feeding <- readRDS(here("data/clean/clean_data.rds"))
+```
+
+### Raw Data
+
+Mean feeding time **per video** ± SE
+
+```{r}
+dat_sec_feeding %>%
+  group_by(size_class, shark_in_video, year, video) %>%
+  #mean feeding time per video
+    summarise(mean_sec_feeding_video = mean(sec_feeding, na.rm = T)) %>%
+   group_by(size_class, shark_in_video, year) %>%
+  #mean feeding time per group
+  summarise(
+    mean_sec_feeding = mean(mean_sec_feeding_video, na.rm = T),
+    sd = sd(mean_sec_feeding_video, na.rm = T),
+    n = n(),
+    se = ifelse(n >= 3, sd / sqrt(n), NA)
+  ) %>%
+  ggplot() +
+  geom_errorbar(aes(
+    x = shark_in_video,
+    ymin = mean_sec_feeding - se,
+    ymax = mean_sec_feeding + se,
+    col = factor(shark_in_video),
+    width = .4
+  )) +
+  geom_point(aes(
+    x = shark_in_video,
+    y = mean_sec_feeding,
+    col = factor(shark_in_video)
+  )) +
+  facet_grid(year ~ size_class , scales = "free") +
+  theme_clean()
+```
+
+### Models Small & Medium
+
+```{r}
+dat_sec_feeding_SM <- dat_sec_feeding %>%
+  filter(size_class != "Large") %>% 
+  droplevels()
+
+
+fit_sec_feeding_SM <- brm(
+  bf(
+    sec_feeding ~ year * shark_in_video * size_class +
+      s(log_n_frame_total) + 
+                  habitat + 
+                  s(log_depth) +
+                  (1|video), 
+    hu ~ year * shark_in_video
+  ),
+             control = list(max_treedepth = 14, 
+                          adapt_delta = 0.9),
+  family = hurdle_gamma(link = "log"),
+  data = dat_sec_feeding_SM,
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/fit_sec_feeding_SM"),
+  backend = "cmdstanr"
+)
+```
+
+Assess Model
+
+```{r}
+summary(fit_sec_feeding_SM)#ok 127 divergent transitions, Rhat ok
+
+bayesplot::ppc_dens_overlay(y = log1p(dat_sec_feeding_SM$sec_feeding), 
+                            yrep = log1p(posterior_predict(fit_sec_feeding_SM)[1:10,]))
+
+bayes_R2(fit_sec_feeding_SM)#0.1207585
+```
+
+#### Plot Results for year shark_in_video size_class
+
+Emmeans does not include zero inflation(?) \> manually
+
+```{r}
+
+epred_sec_feeding_SM <-  epred_draws(
+  fit_sec_feeding_SM,
+  newdata = expand_grid(
+    year = dat_sec_feeding_SM$year %>% unique(),
+    shark_in_video = dat_sec_feeding_SM$shark_in_video %>% unique(),
+    size_class = c("Small", "Medium"),
+    habitat = dat_sec_feeding_SM$habitat %>% unique(),
+    log_depth = mean(dat_sec_feeding_SM$depth) %>%
+      log(),
+    log_n_frame_total = mean(dat_sec_feeding_SM$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+) %>%
+  #average over habitat
+  group_by(year,
+           shark_in_video,
+           size_class,
+           log_depth,
+           log_n_frame_total,
+           .draw) %>%
+  summarise(.epred = mean(.epred))
+
+```
+
+Plot
+
+```{r}
+
+plot_sec_feeding_SM <- ggplot(data = epred_sec_feeding_SM, 
+                                 aes(x = year, 
+                                     col = paste(shark_in_video, size_class, sep = "_"))) +
+  geom_point(
+    data = dat_sec_feeding_SM,
+    aes(y = sec_feeding),
+    position =  position_jitterdodge(jitter.width = .2, dodge.width = .7),
+    alpha = .1,
+    size = 3,
+    stroke = 0
+  ) +
+  stat_pointinterval(
+    aes(y = .epred),
+    point_interval = mode_hdi,
+    .width = c(.95, .89),
+    position = position_dodge(width = .7),
+    show.legend = F
+  ) +
+  scale_colour_manual(values = cols_sharks,
+                      labels = c("absent", "absent", "present", "present")) +
+  guides(color = guide_legend(override.aes = list(alpha = 1), title = "Shark")) +
+  labs(x = NULL, y = "Feeding time (sec)") +
+  facet_grid( ~ factor(size_class, levels = c("Small", "Medium")), scales = "free") +
+  scale_y_continuous(trans = 'log10') +
+  theme_clean(); plot_sec_feeding_SM
+```
+
+And save
+
+```{r}
+ggsave(filename = "sec_feeding_SM.pdf",
+       plot = plot_sec_feeding_SM, 
+       path = here("plots"),
+       width = 15, height = 9, units = "cm")
+```
+
+##### Conditional effects for shark_in_video per year and size_class
+
+```{r}
+epred_sec_feeding_SM %>% 
+  pivot_wider(names_from = "shark_in_video", values_from = ".epred") %>% 
+  mutate(contrast = "absent - present",
+         .value = absent - present) %>% 
+  group_by(contrast, size_class, year) %>%
+  # median_hdi returns wrong groups? => manually
+  summarise(median = median(.value),
+            bayestestR::hdi(.value)) %>% 
+  rename(".lower"  = "CI_low",
+         ".upper"  = "CI_high") %>% 
+  select(-CI) %>%
+  mutate(important = ifelse(.upper > 0 & .lower > 0 |
+                       .upper < 0 & .lower < 0, "*","")) %>% 
+  mutate_if(is.numeric, txtRound,2) %>% 
+  arrange(desc(size_class)) %>% 
+  htmlTable(rnames = FALSE)
+
+```
+
+No effect
+
+##### Conditional effects for habitat
+
+```{r}
+epred_sec_feeding_SM_habitat <- epred_draws(
+  fit_sec_feeding_SM,
+  newdata = expand_grid(
+    year = dat_sec_feeding_SM$year %>% unique(),
+    shark_in_video = dat_sec_feeding_SM$shark_in_video %>% unique(),
+    size_class = c("Small", "Medium"),
+    habitat = dat_sec_feeding_SM$habitat %>% unique(),
+    log_depth = mean(dat_sec_feeding_SM$depth) %>%
+      log(),
+    log_n_frame_total = mean(dat_sec_feeding_SM$n_frame_total) %>%
+      log()
+  ),
+  re_formula = NA
+) %>%
+  #average over habitat
+  group_by(habitat,
+           .draw) %>%
+  summarise(.epred = mean(.epred)) %>%
+  pivot_wider(names_from = "habitat", values_from = ".epred") %>% 
+  mutate(contrast = "near reef - reef",
+         .value = `near reef` - reef) 
+
+#Table
+epred_sec_feeding_SM_habitat %>% 
+  group_by(contrast) %>%
+  median_hdi(.value) %>% 
+  mutate(important = ifelse(.upper > 0 & .lower > 0 |
+                       .upper < 0 & .lower < 0, "*","")) %>% 
+  select(-.width, -.point, -.interval) %>% 
+  mutate_if(is.numeric, txtRound,2) %>% 
+  htmlTable(rnames = FALSE)
+
+#Plot
+epred_sec_feeding_SM_habitat %>% 
+  ggplot()+
+  geom_hline(yintercept = 0, linetype = "11")+
+  stat_pointinterval(
+    aes(y = .value, x = 1),
+    point_interval = mode_hdi,
+    .width = c(.95, .89),
+    position = position_dodge(width = .7),
+    show.legend = F
+  )+
+  theme_clean()
+
+```
+
+No effect
+
+##### Conditional effects for n fish in frame
+
+```{r}
+epred_sec_feeding_SM_ntotal <- epred_draws(
+  fit_sec_feeding_SM,
+  newdata = expand_grid(
+    year = dat_sec_feeding_SM$year %>% unique(),
+    shark_in_video = dat_sec_feeding_SM$shark_in_video %>% unique(),
+    size_class = c("Small", "Medium"),
+    habitat = dat_sec_feeding_SM$habitat %>% unique(),
+    log_depth = mean(dat_sec_feeding_SM$depth) %>%
+      log(),
+    log_n_frame_total = seq(min(dat_sec_feeding_SM$n_frame_total),
+                            max(dat_sec_feeding_SM$n_frame_total),
+                            length = 100) %>%
+      log()
+  ),
+  re_formula = NA
+) %>%
+  #average over habitat
+  group_by(log_n_frame_total,
+           .draw) %>%
+  summarise(.epred = mean(.epred))
+
+
+plot_sec_feeding_SM_ntotal <- ggplot(data = dat_sec_feeding_SM, 
+                                     aes(x = log_n_frame_total))+
+  stat_lineribbon(data = epred_sec_feeding_SM_ntotal,
+                  aes(y = .epred),
+                  .width = c(.95),
+                  fill = "lightblue", show.legend = F)+
+  geom_point(aes(y = sec_feeding), alpha = .1)+
+  labs(x = "log(n fish in frame)", y = "Feeding time (sec)")+
+  theme_clean()+
+  theme(legend.position = "none")
+
+plot_sec_feeding_SM_ntotal
+
+ggsave(filename = "sec_feeding_SM_ntotal.pdf",
+       plot = plot_sec_feeding_SM_ntotal, 
+       path = here("plots/SI"),
+       width = 20, height = 15, units = "cm")
+```
+
+##### Conditional effects for depth
+
+```{r}
+
+log_n_frame_total = seq(min(dat_sec_feeding_SM$n_frame_total),
+                            max(dat_sec_feeding_SM$n_frame_total),
+                            length = 100) %>%
+      log()
+
+
+epred_sec_feeding_SM_depth <- epred_draws(
+  fit_sec_feeding_SM,
+  newdata = expand_grid(
+    year = dat_sec_feeding_SM$year %>% unique(),
+    shark_in_video = dat_sec_feeding_SM$shark_in_video %>% unique(),
+    size_class = c("Small", "Medium"),
+    habitat = dat_sec_feeding_SM$habitat %>% unique(),
+    log_n_frame_total = mean(dat_sec_feeding_SM$n_frame_total) %>%
+      log(),
+    log_depth = seq(min(dat_sec_feeding_SM$depth),
+                            max(dat_sec_feeding_SM$depth),
+                            length = 100) %>%
+      log()
+  ),
+  re_formula = NA
+) %>%
+  group_by(log_depth,
+           .draw) %>%
+  summarise(.epred = mean(.epred))
+
+
+plot_sec_feeding_SM_depth <- ggplot(data = dat_sec_feeding_SM, 
+                                     aes(x = log_depth))+
+  stat_lineribbon(data = epred_sec_feeding_SM_depth,
+                  aes(y = .epred),
+                  .width = c(.95),
+                  fill = "lightblue", show.legend = F)+
+  geom_point(aes(y = sec_feeding), alpha = .1)+
+  labs(x = "log(depth)", y = "Feeding time (sec)")+
+  theme_clean()+
+  theme(legend.position = "none")
+
+plot_sec_feeding_SM_depth
+
+ggsave(filename = "sec_feeding_SM_depth.pdf",
+       plot = plot_sec_feeding_SM_depth, 
+       path = here("plots/SI"),
+       width = 20, height = 15, units = "cm")
+```
+No impact
+
+```{r}
+plot_epred_sec_feeding_SM_ntotal <- plot_predictions(
+  fit_sec_feeding_SM,
+  condition = c("log_n_frame_total"),
+  conf_level = .95
+) +
+  geom_point(data = dat_sec_feeding_SM, aes(x = log_n_frame_total, y = sec_feeding), alpha = .1) +
+  labs(x = "log(n fish in frame)", y = "Feeding time (sec)") +
+  theme_clean()
+
+
+plot_epred_sec_feeding_SM_ntotal
+
+ggsave(filename = "sec_feeding_SM_ntotal.pdf",
+       plot = plot_epred_sec_feeding_SM_ntotal, 
+       path = here("plots/SI"),
+       width = 20, height = 15, units = "cm")
+```
+
+No impact, mostly 0
