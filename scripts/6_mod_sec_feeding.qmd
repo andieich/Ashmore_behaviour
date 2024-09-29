@@ -181,7 +181,7 @@ ggsave(filename = "sec_feeding_SM.pdf",
        width = 15, height = 9, units = "cm")
 ```
 
-##### Conditional effects for shark_in_video per year and size_class
+#### Conditional effects for shark_in_video per year and size_class
 
 ```{r}
 epred_sec_feeding_SM %>% 
@@ -205,7 +205,7 @@ epred_sec_feeding_SM %>%
 
 No effect
 
-##### Conditional effects for habitat
+#### Conditional effects for habitat
 
 ```{r}
 epred_sec_feeding_SM_habitat <- epred_draws(
@@ -257,7 +257,7 @@ epred_sec_feeding_SM_habitat %>%
 
 No effect
 
-##### Conditional effects for n fish in frame
+#### Conditional effects for n fish in frame
 
 ```{r}
 epred_sec_feeding_SM_ntotal <- epred_draws(
@@ -301,7 +301,7 @@ ggsave(filename = "sec_feeding_SM_ntotal.pdf",
        width = 20, height = 15, units = "cm")
 ```
 
-##### Conditional effects for depth
+#### Conditional effects for depth
 
 ```{r}
 
