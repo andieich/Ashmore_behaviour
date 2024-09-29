@@ -415,7 +415,7 @@ plot_epred_frac_SM_ntotal <- ggplot(data = dat_fracL_SM, aes(x = log_n_frame_tot
   stat_lineribbon(data = epred_frac_SM_ntotal,
                   aes(y = .epred),
                   .width = c(.95),
-                  fill = "lightblue", show.legend = F)+
+                  fill = "grey", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
   labs(x = "log(n fish in frame)", y = "Fraction of total time in frame")+
@@ -468,7 +468,7 @@ plot_epred_frac_SM_depth <- ggplot(data = dat_fracL_SM, aes(x = log_depth, col =
   stat_lineribbon(data = epred_frac_SM_depth,
                   aes(y = .epred),
                   .width = c(.95),
-                  fill = "lightblue", show.legend = F)+
+                  fill = "grey", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
   labs(x = "log(depth)", y = "Fraction of total time in frame")+
@@ -757,7 +757,7 @@ plot_epred_frac_L_ntotal <- ggplot(data = dat_fracL_L, aes(x = log_n_frame_total
   stat_lineribbon(data = epred_frac_L_ntotal,
                   aes(y = .epred),
                   .width = c(.95),
-                  fill = "lightblue", show.legend = F)+
+                  fill = "grey", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
   labs(x = "log(n fish in frame)", y = "Fraction of total time in frame")+
@@ -809,7 +809,7 @@ plot_epred_frac_L_depth <- ggplot(data = dat_fracL_L, aes(x = log_depth, col = t
   stat_lineribbon(data = epred_frac_L_depth,
                   aes(y = .epred),
                   .width = c(.95),
-                  fill = "lightblue", show.legend = F)+
+                  fill = "grey", show.legend = F)+
   geom_point(aes(y = frac), alpha = .1)+
     facet_grid(~type)+
   labs(x = "log(depth)", y = "Fraction of total time in frame")+
