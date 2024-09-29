@@ -317,6 +317,20 @@ epred_frac_SM %>%
   htmlTable(rnames = FALSE)
 ```
 
+For feeding 2016 small fish, calculate fraction of posterior \> 0
+
+```{r}
+epred_frac_SM %>% 
+  pivot_wider(names_from = "shark_in_video", values_from = ".epred") %>% 
+  mutate(contrast = "absent - present",
+         .value = absent - present) %>% 
+  filter(year == 2016, type == "Feeding", .value > 0, size_class == "Small") %>% 
+  group_by(contrast, size_class, year, type) %>%
+  summarise(below_0 = 1-n()/8000) %>% 
+  mutate_if(is.numeric, txtRound,2) %>% 
+  htmlTable(rnames = FALSE)
+```
+
 ##### Conditional effects for habitat and type
 
 ```{r}
