@@ -287,7 +287,7 @@ plot_sec_feeding_SM_ntotal <- ggplot(data = dat_sec_feeding_SM,
   stat_lineribbon(data = epred_sec_feeding_SM_ntotal,
                   aes(y = .epred),
                   .width = c(.95),
-                  fill = "lightblue", show.legend = F)+
+                  fill = "grey", show.legend = F)+
   geom_point(aes(y = sec_feeding), alpha = .1)+
   labs(x = "log(n fish in frame)", y = "Feeding time (sec)")+
   theme_clean()+
@@ -337,7 +337,7 @@ plot_sec_feeding_SM_depth <- ggplot(data = dat_sec_feeding_SM,
   stat_lineribbon(data = epred_sec_feeding_SM_depth,
                   aes(y = .epred),
                   .width = c(.95),
-                  fill = "lightblue", show.legend = F)+
+                  fill = "grey", show.legend = F)+
   geom_point(aes(y = sec_feeding), alpha = .1)+
   labs(x = "log(depth)", y = "Feeding time (sec)")+
   theme_clean()+
