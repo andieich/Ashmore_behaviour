@@ -247,7 +247,7 @@ plot_frac_SM <- ggplot(data = epred_frac_SM,
 Save
 
 ```{r}
-ggsave(filename = "bahavior_fractions_SM.pdf",
+ggsave(filename = "behavior_fractions_SM.pdf",
        plot = plot_frac_SM, 
        path = here("plots"),
        width = 18, height = 12, units = "cm")
@@ -292,7 +292,7 @@ plot_fractions_tenary_SM <- epred_frac_SM %>%
 ```
 
 ```{r}
-ggsave(filename = "bahavior_fractions_SM_tenary.pdf",
+ggsave(filename = "behavior_fractions_SM_tenary.pdf",
        plot = plot_fractions_tenary_SM, 
        path = here("plots"),
        width = 18, height = 15, units = "cm")
@@ -424,7 +424,7 @@ plot_epred_frac_SM_ntotal <- ggplot(data = dat_fracL_SM, aes(x = log_n_frame_tot
 
 plot_epred_SM_ntotal
 
-ggsave(filename = "bahavior_fractions_SM_ntotal.pdf",
+ggsave(filename = "behavior_fractions_SM_ntotal.pdf",
        plot = plot_epred_frac_SM_ntotal, 
        path = here("plots/SI"),
        width = 20, height = 15, units = "cm")
@@ -477,7 +477,7 @@ plot_epred_frac_SM_depth <- ggplot(data = dat_fracL_SM, aes(x = log_depth, col =
 
 plot_epred_frac_SM_depth
 
-ggsave(filename = "bahavior_fractions_SM_depth.pdf",
+ggsave(filename = "behavior_fractions_SM_depth.pdf",
        plot = plot_epred_frac_SM_depth, 
        path = here("plots/SI"),
        width = 20, height = 15, units = "cm")
@@ -592,7 +592,7 @@ plot_frac_L <- ggplot(data = epred_frac_L,
 Save
 
 ```{r}
-ggsave(filename = "bahavior_fractions_L.pdf",
+ggsave(filename = "behavior_fractions_L.pdf",
        plot = plot_frac_L, 
        path = here("plots/SI"),
        width = 18, height = 7, units = "cm")
@@ -637,7 +637,7 @@ plot_fractions_tenary_L <- epred_frac_L %>%
 ```
 
 ```{r}
-ggsave(filename = "bahavior_fractions_L_tenary.pdf",
+ggsave(filename = "behavior_fractions_L_tenary.pdf",
        plot = plot_fractions_tenary_L, 
        path = here("plots/SI"),
        width = 18, height = 7, units = "cm")
@@ -766,7 +766,7 @@ plot_epred_frac_L_ntotal <- ggplot(data = dat_fracL_L, aes(x = log_n_frame_total
 
 plot_epred_frac_L_ntotal
 
-ggsave(filename = "bahavior_fractions_L_ntotal.pdf",
+ggsave(filename = "behavior_fractions_L_ntotal.pdf",
        plot = plot_epred_frac_L_ntotal, 
        path = here("plots/SI"),
        width = 20, height = 15, units = "cm")
@@ -818,7 +818,7 @@ plot_epred_frac_L_depth <- ggplot(data = dat_fracL_L, aes(x = log_depth, col = t
 
 plot_epred_frac_L_depth
 
-ggsave(filename = "bahavior_fractions_L_depth.pdf",
+ggsave(filename = "behavior_fractions_L_depth.pdf",
        plot = plot_epred_frac_L_depth, 
        path = here("plots/SI"),
        width = 20, height = 15, units = "cm")
