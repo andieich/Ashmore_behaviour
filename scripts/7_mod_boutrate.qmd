@@ -1,5 +1,5 @@
 ---
-title: "Model Bout Rate Present <> Absent"
+title: "Model Bourate Present <> Absent"
 author: "Andreas Eich"
 format: html
 editor: visual
