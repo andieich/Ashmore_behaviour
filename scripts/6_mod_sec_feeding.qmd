@@ -29,8 +29,7 @@ source(here("scripts/functions.R"))
 Filter for data with bouts \> 0 and sec_feeding \> 0
 
 ```{r}
-dat_boutrate <- readRDS(here("data/clean/clean_data.rds")) %>% 
-  filter(bite > 0 & sec_feeding > 0)
+dat_sec_feeding <- readRDS(here("data/clean/clean_data.rds"))
 ```
 
 ### Raw Data
