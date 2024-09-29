@@ -399,7 +399,6 @@ epred_frac_SM_ntotal <- epred_draws(
   ),
   re_formula = NA
 ) %>%
-  #average over habitat
   group_by(.category,
            log_n_frame_total,
            .draw) %>%
@@ -451,7 +450,6 @@ epred_frac_SM_depth <- epred_draws(
   ),
   re_formula = NA
 ) %>%
-  #average over habitat
   group_by(.category,
            log_depth,
            .draw) %>%
@@ -743,7 +741,6 @@ epred_frac_L_ntotal <- epred_draws(
   ),
   re_formula = NA
 ) %>%
-  #average over habitat
   group_by(.category,
            log_n_frame_total,
            .draw) %>%
@@ -794,7 +791,6 @@ epred_frac_L_depth <- epred_draws(
   ),
   re_formula = NA
 ) %>%
-  #average over habitat
   group_by(.category,
            log_depth,
            .draw) %>%
