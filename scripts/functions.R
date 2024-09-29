@@ -133,5 +133,8 @@ cols_sharks <- c("absent_Small" = "lightpink3",
                  "absent_Medium" = "lemonchiffon3",
                  "present_Medium" = "lemonchiffon4")
 
+cols_sharks_S <- c("absent" = "lightpink3",
+                 "present" = "lightpink4")
+
 cols_sharks_L <- c("absent" = "lightblue3",
                  "present" = "lightblue4")
