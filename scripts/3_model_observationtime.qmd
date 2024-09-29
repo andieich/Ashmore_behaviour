@@ -16,6 +16,7 @@ library(ggtern)
 library(kableExtra)
 library(janitor)
 library(bayesplot)
+library(bayestestR)
 library(emmeans)
 library(marginaleffects)
 library(htmlTable)
@@ -121,7 +122,7 @@ Quickly plot results
 
 No impact
 
-##### **Plot Results for** year \* shark_in_video \* size_class
+#####Plot Results for year shark_in_video size_class
 
 Get Emmeans values
 
@@ -170,7 +171,7 @@ And save
 ggsave(filename = "observationtime_SM.pdf",
        plot = plot_observationtime_SM, 
        path = here("plots"),
-       width = 18, height = 12, units = "cm")
+       width = 15, height = 9, units = "cm")
 ```
 
 ##### Conditional effects for shark_in_video per year and size_class
@@ -182,13 +183,15 @@ emmeans(fit_sec_total_SM, ~ shark_in_video | size_class + year, type = "response
   gather_emmeans_draws() %>%
   group_by(contrast, size_class, year) %>%
   median_hdi(.value) %>% 
+  mutate(important = ifelse(.upper > 0 & .lower > 0 |
+                       .upper < 0 & .lower < 0, "*","")) %>% 
   select(-.width, -.point, -.interval) %>% 
   mutate_if(is.numeric, txtRound,2) %>% 
   htmlTable(rnames = FALSE)
 
 ```
 
-##### Conditional effects for shark_in_video per habitat
+##### Conditional effects for habitat
 
 ```{r}
 emmeans(fit_sec_total_SM, ~  habitat, type = "response") %>% plot()
@@ -198,6 +201,8 @@ emmeans(fit_sec_total_SM, ~  habitat, type = "response") %>%
   pairs() %>%
   gather_emmeans_draws() %>%
   median_hdi(.value) %>% 
+  mutate(important = ifelse(.upper > 0 & .lower > 0 |
+                       .upper < 0 & .lower < 0, "*","")) %>% 
   select(-.width, -.point, -.interval) %>% 
   mutate_if(is.numeric, txtRound,2) %>% 
   htmlTable(rnames = FALSE)
@@ -205,17 +210,28 @@ emmeans(fit_sec_total_SM, ~  habitat, type = "response") %>%
 
 No effect
 
-##### Conditional effects for shark_in_video per habitat
+##### Conditional effects for n fish in frame
 
 ```{r}
-plot_predictions(fit_sec_total_SM, 
-                 condition = c("log_n_frame_total"), 
-                 conf_level = .95)+
-  geom_point(data = dat_obs_SM,
-             aes(x = log_n_frame_total, y =sec_total))+
+plot_epred_sec_total_SM_ntotal <- plot_predictions(
+  fit_sec_total_SM,
+  condition = c("log_n_frame_total"),
+  conf_level = .95
+) +
+  geom_point(data = dat_obs_SM, aes(x = log_n_frame_total, y = sec_total)) +
   scale_y_continuous(trans = 'log10') +
   labs(x = "log(n fish in frame)", y = "Observation time (sec)") +
   theme_clean()
+
+
+plot_epred_sec_total_SM_ntotal
+
+ggsave(filename = "observationtime_SM_ntotal.pdf",
+       plot = plot_epred_sec_total_SM_ntotal, 
+       path = here("plots/SI"),
+       width = 20, height = 15, units = "cm")
+
+
 ```
 
 Slight increase
@@ -223,7 +239,7 @@ Slight increase
 ##### Conditional effects for shark_in_video per habitat
 
 ```{r}
-plot_predictions(fit_sec_total_SM, 
+plot_epred_sec_total_SM_depth <- plot_predictions(fit_sec_total_SM, 
                  condition = c("log_depth"), 
                  conf_level = .95)+
   geom_point(data = dat_obs_SM,
@@ -231,6 +247,14 @@ plot_predictions(fit_sec_total_SM,
   scale_y_continuous(trans = 'log10') +
   labs(x = "log(depth)", y = "Observation time (sec)") +
   theme_clean()
+
+plot_epred_sec_total_SM_depth
+
+ggsave(filename = "observationtime_SM_depth.pdf",
+       plot = plot_epred_sec_total_SM_depth, 
+       path = here("plots/SI"),
+       width = 20, height = 15, units = "cm")
+
 ```
 
 No effect
@@ -272,6 +296,147 @@ pp_check(fit_sec_total_L, ndraws = 100)
 bayes_R2(fit_sec_total_L)#0.45
 ```
 
+#####Plot Results for year shark_in_video size_class
+
+Get Emmeans values
+
 ```{r}
-conditional_effects(fit_sec_total_L)
+epred_sec_total_L <- emmeans(fit_sec_total_L,
+                              ~year * shark_in_video, 
+                              typ = "response") %>%   
+  gather_emmeans_draws() %>% 
+  mutate(.value = exp(.value))# gather_emmeans_draws() removes back-transformation
 ```
+
+Plot
+
+```{r}
+
+plot_observationtime_L <- ggplot(data = epred_sec_total_L, 
+                                 aes(x = year, 
+                                     col = shark_in_video)) +
+  geom_point(
+    data = dat_obs_L,
+    aes(y = sec_total),
+    position =  position_jitterdodge(jitter.width = .2, dodge.width = .7),
+    alpha = .1,
+    size = 3,
+    stroke = 0
+  ) +
+  stat_pointinterval(
+    aes(y = .value),
+    point_interval = mode_hdi,
+    .width = c(.95, .89),
+    position = position_dodge(width = .7),
+    show.legend = F
+  ) +
+  scale_colour_manual(values = cols_sharks_L,
+                      labels = c("absent", "present")) +
+  guides(color = guide_legend(override.aes = list(alpha = 1), title = "Shark")) +
+  labs(x = NULL, y = "Observation time (sec)") +
+  scale_y_continuous(trans = 'log10') +
+  theme_clean(); plot_observationtime_L
+```
+
+And save
+
+```{r}
+ggsave(filename = "observationtime_L.pdf",
+       plot = plot_observationtime_L, 
+       path = here("plots/SI"),
+       width = 15/1.7, height = 9, units = "cm")
+```
+
+##### Conditional effects for shark_in_video per year
+
+```{r}
+emmeans(fit_sec_total_L, ~ shark_in_video | year, type = "response") %>%
+  regrid() %>%
+  pairs() %>%
+  gather_emmeans_draws() %>%
+  group_by(contrast, year) %>%
+  # median_hdi returns 3 groups? => manually
+  summarise(median = median(.value),
+            bayestestR::hdi(.value)) %>% 
+  rename(".lower"  = "CI_low",
+         ".upper"  = "CI_high") %>% 
+  select(-CI) %>% 
+  mutate(important = ifelse(.upper > 0 & .lower > 0 |
+                       .upper < 0 & .lower < 0, "*","")) %>% 
+  mutate_if(is.numeric, txtRound,2) %>% 
+  htmlTable(rnames = FALSE)
+
+```
+
+##### Conditional effects for habitat
+
+```{r}
+emmeans(fit_sec_total_L, ~  habitat, type = "response") %>% plot()
+
+emmeans(fit_sec_total_L, ~  habitat, type = "response") %>%
+  regrid() %>%
+  pairs() %>%
+  gather_emmeans_draws() %>%
+  # median_hdi returns 3 groups? => manually
+  summarise(median = median(.value),
+            bayestestR::hdi(.value)) %>% 
+  rename(".lower"  = "CI_low",
+         ".upper"  = "CI_high") %>% 
+  select(-CI) %>% 
+  mutate(important = ifelse(.upper > 0 & .lower > 0 |
+                       .upper < 0 & .lower < 0, "*","")) %>% 
+  mutate_if(is.numeric, txtRound,2) %>% 
+  htmlTable(rnames = FALSE)
+```
+
+No effect
+
+##### Conditional effects for n fish in frame
+
+```{r}
+plot_epred_sec_total_L_ntotal <- plot_predictions(
+  fit_sec_total_L,
+  condition = c("log_n_frame_total"),
+  conf_level = .95
+) +
+  geom_point(data = dat_obs_L, aes(x = log_n_frame_total, y = sec_total)) +
+  scale_y_continuous(trans = 'log10') +
+  labs(x = "log(n fish in frame)", y = "Observation time (sec)") +
+  theme_clean()
+
+
+plot_epred_sec_total_L_ntotal
+
+ggsave(filename = "observationtime_L_ntotal.pdf",
+       plot = plot_epred_sec_total_L_ntotal, 
+       path = here("plots/SI"),
+       width = 20, height = 15, units = "cm")
+
+
+```
+
+Slight increase
+
+##### Conditional effects for shark_in_video per habitat
+
+```{r}
+plot_epred_sec_total_L_depth <- plot_predictions(fit_sec_total_L, 
+                 condition = c("log_depth"), 
+                 conf_level = .95)+
+  geom_point(data = dat_obs_L,
+             aes(x = log_depth, y =sec_total))+
+  scale_y_continuous(trans = 'log10') +
+  labs(x = "log(depth)", y = "Observation time (sec)") +
+  theme_clean()
+
+plot_epred_sec_total_L_depth
+
+ggsave(filename = "observationtime_L_depth.pdf",
+       plot = plot_epred_sec_total_L_depth, 
+       path = here("plots/SI"),
+       width = 20, height = 15, units = "cm")
+
+```
+
+No effect
+
