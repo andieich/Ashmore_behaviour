@@ -200,4 +200,3 @@ emmeans(fit_boutrate_S, ~ shark_in_video |  year, type = "response") %>%
   mutate_if(is.numeric, txtRound,2) %>% 
   htmlTable(rnames = FALSE)
 ```
-
