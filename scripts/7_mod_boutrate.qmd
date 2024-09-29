@@ -1,0 +1,203 @@
+---
+title: "Model Bout Rate Present <> Absent"
+author: "Andreas Eich"
+format: html
+editor: visual
+---
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(ggtern)
+library(kableExtra)
+library(janitor)
+library(bayesplot)
+library(emmeans)
+library(marginaleffects)
+library(htmlTable)
+
+# get custom functions
+source(here("scripts/functions.R"))
+```
+
+### Get data
+
+Sometimes bouts/bites \> 1 when feeding time = 0, sometimes feeding time \> 0 but bout/bites = 0
+
+```{r}
+dat_boutrate <- readRDS(here("data/clean/clean_data.rds")) %>% 
+  filter(bite > 0 & sec_feeding > 0)
+```
+
+Calculate bouts per sec
+
+```{r}
+dat_boutrate <- dat_boutrate %>% 
+  mutate(boutrate = bout/sec_feeding)
+```
+
+### Raw Data
+
+Mean feeding time **per video** ± SE
+
+```{r}
+dat_boutrate %>%
+  group_by(size_class, shark_in_video, year, video) %>%
+  #mean feeding time per video
+    summarise(mean_boutrate_video = mean(boutrate, na.rm = T)) %>%
+   group_by(size_class, shark_in_video, year) %>%
+  #mean feeding time per group
+  summarise(
+    mean_boutrate = mean(mean_boutrate_video, na.rm = T),
+    sd = sd(mean_boutrate_video, na.rm = T),
+    n = n(),
+    se = ifelse(n >= 3, sd / sqrt(n), NA)
+  ) %>%
+  ggplot() +
+  geom_errorbar(aes(
+    x = shark_in_video,
+    ymin = mean_boutrate - se,
+    ymax = mean_boutrate + se,
+    col = factor(shark_in_video),
+    width = .4
+  )) +
+  geom_point(aes(
+    x = shark_in_video,
+    y = mean_boutrate,
+    col = factor(shark_in_video)
+  )) +
+  facet_grid(year ~ size_class , scales = "free") +
+  theme_clean()
+```
+
+Only possible for small fish
+
+### Models Small
+
+Few observations, focus on year \* shark_in_video
+
+```{r}
+dat_boutrate_S <- dat_boutrate %>%
+  filter(size_class == "Small") %>% 
+  select(-size_class)
+
+
+fit_boutrate_S <- brm(
+    boutrate ~ year * shark_in_video +
+                  (1|video),
+             control = list(max_treedepth = 14, 
+                          adapt_delta = 0.99),
+  family = Gamma(link = "log"),
+  data = dat_boutrate_S,
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/fit_boutrate_S"),
+  backend = "cmdstanr"
+)
+```
+
+Assess Model
+
+```{r}
+summary(fit_boutrate_S)#Rhat ok
+
+bayesplot::ppc_dens_overlay(y = log1p(dat_boutrate_S$sec_feeding), 
+                            yrep = log1p(posterior_predict(fit_boutrate_S)[1:10,]))
+
+bayes_R2(fit_boutrate_S)#0.476964
+```
+
+#### Plot Results for year shark_in_video
+
+Get Emmeans values
+
+```{r}
+epred_boutrate_S <- emmeans(fit_boutrate_S,
+                              ~year * shark_in_video, 
+                              typ = "response") %>%   
+  gather_emmeans_draws() %>% 
+  mutate(.value = exp(.value))# gather_emmeans_draws() removes back-transformation
+```
+
+Plot
+
+```{r}
+plot_boutrate_S <- ggplot(data = epred_boutrate_S %>% 
+      mutate(size_class = "Small"), 
+                                 aes(x = year, 
+                                     col = shark_in_video)) +
+  geom_point(
+    data = dat_boutrate_S %>% 
+      mutate(size_class = "Small"),
+    aes(y = boutrate),
+    position =  position_jitterdodge(jitter.width = .2, dodge.width = .7),
+    alpha = .1,
+    size = 3,
+    stroke = 0
+  ) +
+  stat_pointinterval(
+    aes(y = .value),
+    point_interval = mode_hdi,
+    .width = c(.95, .89),
+    position = position_dodge(width = .7),
+    show.legend = F
+  ) +
+  scale_colour_manual(values = cols_sharks_S,
+                      labels = c("absent", "present")) +
+  guides(color = guide_legend(override.aes = list(alpha = 1), title = "Shark")) +
+  labs(x = NULL, y = "Bouts per second") +
+ # scale_y_continuous(trans = 'log10') +
+  facet_grid( ~ size_class, scales = "free") +
+  theme_clean(); plot_boutrate_S
+```
+
+And save
+
+```{r}
+ggsave(filename = "boutrate_S.pdf",
+       plot = plot_boutrate_S, 
+       path = here("plots"),
+       width = 15/1.7, height = 9, units = "cm")
+```
+
+#### Conditional effects for shark_in_video per year
+
+```{r}
+emmeans(fit_boutrate_S, ~ shark_in_video |  year, type = "response") %>%
+  regrid() %>%
+  pairs() %>%
+  gather_emmeans_draws() %>%
+  group_by(contrast, year) %>%
+    summarise(median = median(.value),
+            bayestestR::hdi(.value,ci = 0.95)) %>% 
+  rename(".lower"  = "CI_low",
+         ".upper"  = "CI_high") %>% 
+    select(-CI) %>%
+  mutate(important = ifelse(.upper > 0 & .lower > 0 |
+                       .upper < 0 & .lower < 0, "*","")) %>% 
+  mutate_if(is.numeric, txtRound,2) %>% 
+  htmlTable(rnames = FALSE)
+
+```
+
+```{r}
+emmeans(fit_boutrate_S, ~ shark_in_video |  year, type = "response") %>%
+  regrid() %>%
+  pairs() %>%
+  gather_emmeans_draws() %>%
+  filter(.value > 0) %>% 
+  group_by(contrast, year) %>% 
+  summarise(above_0 = n()/8000) %>% 
+  mutate_if(is.numeric, txtRound,2) %>% 
+  htmlTable(rnames = FALSE)
+```
+
