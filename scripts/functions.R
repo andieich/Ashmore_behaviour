@@ -25,7 +25,9 @@ theme_tern_clean <- function(){
         strip.background = element_blank(),
         axis.line = element_line(colour = "black"),
         panel.background = element_rect(colour = "black", fill='transparent'),
-        tern.axis.arrow.show = T)
+        tern.axis.arrow.show = T,
+        legend.key = element_rect(fill = "transparent",
+                                  color = 'transparent'))
 }
 
 transformD <- function(vals, c = 3){
@@ -130,3 +132,6 @@ cols_sharks <- c("absent_Small" = "lightpink3",
                  "present_Small" = "lightpink4",
                  "absent_Medium" = "lemonchiffon3",
                  "present_Medium" = "lemonchiffon4")
+
+cols_sharks_L <- c("absent" = "lightblue3",
+                 "present" = "lightblue4")
