@@ -26,8 +26,6 @@ source(here("scripts/functions.R"))
 
 ### Get data
 
-Filter for data with bouts \> 0 and sec_feeding \> 0
-
 ```{r}
 dat_sec_feeding <- readRDS(here("data/clean/clean_data.rds"))
 ```
