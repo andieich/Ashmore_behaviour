@@ -19,6 +19,7 @@ library(bayesplot)
 library(emmeans)
 library(marginaleffects)
 library(htmlTable)
+library(patchwork)
 
 # get custom functions
 source(here("scripts/functions.R"))
@@ -163,10 +164,27 @@ plot_boutrate_S <- ggplot(data = epred_boutrate_S %>%
 And save
 
 ```{r}
-ggsave(filename = "boutrate_S.pdf",
-       plot = plot_boutrate_S, 
+# ggsave(filename = "boutrate_S.pdf",
+#        plot = plot_boutrate_S, 
+#        path = here("plots"),
+#        width = 15/1.7, height = 9, units = "cm")
+```
+
+Combine with bouts
+
+```{r}
+plot_bouts_S <- readRDS(here("plots/plot_bouts_S.rds"))+
+  labs(tag = "A")
+
+plot_bouts_and_rate <- plot_bouts_S + plot_boutrate_S+
+  labs(tag = "B")
+
+plot_bouts_and_rate
+
+ggsave(filename = "bouts_and_rate.pdf",
+       plot = plot_bouts_and_rate,
        path = here("plots"),
-       width = 15/1.7, height = 9, units = "cm")
+       width = 15, height = 9, units = "cm")
 ```
 
 #### Conditional effects for shark_in_video per year

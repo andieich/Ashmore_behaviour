@@ -303,13 +303,20 @@ plot_bouts_S <- ggplot(data = epred_bouts_S %>%
   theme_clean(); plot_bouts_S
 ```
 
-And save to SI, only small effect
+And save as pdf
 
 ```{r}
-ggsave(filename = "bouts_S.pdf",
-       plot = plot_bouts_S, 
-       path = here("plots"),
-       width = 15/1.7, height = 9, units = "cm")
+# ggsave(filename = "bouts_S.pdf",
+#        plot = plot_bouts_S, 
+#        path = here("plots"),
+#        width = 15/1.7, height = 9, units = "cm")
+```
+
+To combine with boutrate, save as rds w/o legend
+
+```{r}
+saveRDS(plot_bouts_S+
+          theme(legend.position = "none"), here("plots/plot_bouts_S.rds"))
 ```
 
 ##### Conditional effects for shark_in_video per year
