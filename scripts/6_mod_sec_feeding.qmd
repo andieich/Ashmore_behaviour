@@ -203,9 +203,7 @@ epred_sec_feeding_SM %>%
 
 ```
 
-No effect
-
-#### Conditional effects for habitat
+Small in 2016Conditional effects for habitat
 
 ```{r}
 epred_sec_feeding_SM_habitat <- epred_draws(
