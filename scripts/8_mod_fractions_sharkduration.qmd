@@ -101,7 +101,7 @@ fit_frac_shark_duration <- brm(
 ```
 
 ```{r}
-summary(fit_frac_shark_duration)# Rhat OK, 20 div trasn
+summary(fit_frac_shark_duration)# Rhat OK
 #plot(fit_frac_SM) # ok
 ```
 
@@ -111,9 +111,9 @@ Get R2 value per category
 dirichlet_r2(fit_frac_shark_duration)# takes some time
 ```
 
-rac_investigating_circlingT 0.17941317\
-frac_passingT 0.20381820\
-frac_feedingT 0.05181808
+frac_investigating_circlingT 0.17943803\
+frac_passingT 0.20381704\
+frac_feedingT 0.05133917
 
 ##### Effect of log_total_time_shark_present_frame
 
