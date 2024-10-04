@@ -1,0 +1,168 @@
+---
+title: "Model Behaviour fractions depending on duration shark visible in video"
+author: "Andreas Eich"
+format: html
+editor: visual
+bibliography: references.bib
+---
+
+### Libraries
+
+```{r}
+library(here) # easier paths, here() function starts in the folder of the RStudio project
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(ggtern)
+library(kableExtra)
+library(janitor)
+library(bayesplot)
+library(emmeans)
+library(marginaleffects)
+library(htmlTable)
+
+# get custom functions
+source(here("scripts/functions.R"))
+```
+
+### Get data
+
+```{r}
+dat_frac_shark_duration <- readRDS(here("data/clean/clean_data.rds")) %>% 
+  filter(shark_in_video == "present") %>% 
+  select(-shark_in_video)
+```
+
+-   Make long data frame
+
+```{r}
+dat_frac_shark_durationL <- dat_frac_shark_duration %>%
+  pivot_longer(frac_investigating_circling:frac_feeding, 
+               names_to = "type", 
+               values_to = "frac") %>% 
+    mutate(type = recode(type,
+                       "frac_feeding" = "Feeding",
+                       "frac_passing" = "Passing",
+                       "frac_investigating_circling" = "Investigating-Circling"))
+```
+
+### Plot raw data
+
+```{r}
+dat_frac_shark_durationL %>% 
+  ggplot(aes(x = log_total_time_shark_present_frame, 
+                    y = frac, 
+                    col = factor(type)))+
+  geom_point(alpha = .1)+
+  geom_smooth()+
+  theme_clean()
+```
+
+### Model
+
+#### Prepare data
+
+Divide into small&medium and large size class data set and transform after @douma2019 to replace 1 and 0 values
+
+```{r}
+dat_frac_shark_duration <- dat_frac_shark_duration %>% 
+  droplevels() %>% 
+  mutate(frac_investigating_circlingT = transformD(frac_investigating_circling),
+         frac_passingT = transformD(frac_passing),
+         frac_feedingT = transformD(frac_feeding))
+```
+
+#### all Size classes
+
+Fit model Small an Medium size class
+
+```{r}
+fit_frac_shark_duration <- brm(
+  bf(
+    cbind(frac_investigating_circlingT, frac_passingT, frac_feedingT) ~
+      s(log_total_time_shark_present_frame) +
+      (1 | video),
+    phi ~ s(log_total_time_shark_present_frame)
+  ),
+  data = dat_frac_shark_duration,
+  family =  dirichlet(),
+  control = list(adapt_delta = 0.99, max_treedepth = 14),
+  iter = 4000,
+  warmup = 2000,
+  chains = 4,
+  cores = 4,
+  seed = 123,
+  file_refit = "on_change",
+  threads = threading(2, static = T),
+  file = here("models/fit_frac_shark_duration"),
+  backend = "cmdstanr"
+)
+
+```
+
+```{r}
+summary(fit_frac_shark_duration)# Rhat OK, 20 div trasn
+#plot(fit_frac_SM) # ok
+```
+
+Get R2 value per category
+
+```{r}
+dirichlet_r2(fit_frac_shark_duration)# takes some time
+```
+
+rac_investigating_circlingT 0.17941317\
+frac_passingT 0.20381820\
+frac_feedingT 0.05181808
+
+##### Effect of log_total_time_shark_present_frame
+
+```{r}
+epred_frac_shark_duration <- epred_draws(
+  fit_frac_shark_duration,
+  newdata = expand_grid(
+    log_total_time_shark_present_frame = seq(
+      min(
+        dat_frac_shark_duration$total_time_shark_present_frame
+      ),
+      max(
+        dat_frac_shark_duration$total_time_shark_present_frame
+      ),
+      length = 100
+    ) %>%
+      log()
+  ),
+  re_formula = NA
+) %>%
+  group_by(.category, log_total_time_shark_present_frame, .draw) %>%
+  summarise(.epred = mean(.epred)) %>%
+  rename("type" = ".category") %>%
+  mutate(
+    type = recode(
+      type,
+      "frac_feedingT" = "Feeding",
+      "frac_passingT" = "Passing",
+      "frac_investigating_circlingT" = "Investigating-Circling"
+    )
+  )
+
+
+plot_frac_shark_duration <- ggplot(data = dat_frac_shark_durationL, 
+                                      aes(x = log_total_time_shark_present_frame, col = type))+
+  stat_lineribbon(data = epred_frac_shark_duration,
+                  aes(y = .epred),
+                  .width = c(.95),
+                  fill = "grey", show.legend = F)+
+  geom_point(aes(y = frac), alpha = .1)+
+    facet_grid(~type)+
+  labs(x = "log(n fish in frame)", y = "Fraction of total time in frame")+
+  theme_clean()+
+  theme(legend.position = "none")
+
+plot_frac_shark_duration
+
+ggsave(filename = "behaviour_shark_duration.pdf",
+       plot = plot_frac_shark_duration, 
+       path = here("plots/SI"),
+       width = 20, height = 15/1.7, units = "cm")
+```
