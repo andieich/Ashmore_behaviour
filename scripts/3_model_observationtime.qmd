@@ -84,11 +84,6 @@ fit_sec_total_SM <- brm(
     (1 | video),
   data = dat_obs_SM,
   family = Gamma(link = "log"),
-  prior = c(
-    prior(normal(0, 2), class = "Intercept"),
-    prior(normal(0, 2), class = "b"),
-    prior(gamma(0.01, 0.01), class = "shape")
-  ),
   control = list(adapt_delta = 0.99, 
                  max_treedepth = 12),
   iter = 4000,
@@ -106,7 +101,7 @@ fit_sec_total_SM <- brm(
 Assess Model
 
 ```{r}
-summary(fit_sec_total_SM)#8 divergent transitions, Rhat ok
+summary(fit_sec_total_SM)#36 divergent transitions, Rhat ok
 
 ppc_dens_overlay(y = log1p(dat_obs_SM$sec_total),
                  yrep = log1p(posterior_predict(fit_sec_total_SM)[1:100, ]))
@@ -272,11 +267,6 @@ fit_sec_total_L <- brm(
     (1 | video),
   data = dat_obs_L,
   family = Gamma(link = "log"),
-  prior = c(
-    prior(normal(0, 2), class = "Intercept"),
-    prior(normal(0, 2), class = "b"),
-    prior(gamma(0.01, 0.01), class = "shape")
-  ),
   control = list(max_treedepth = 12, adapt_delta = 0.99),
   iter = 4000,
   warmup = 2000,
