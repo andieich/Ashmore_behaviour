@@ -53,3 +53,5 @@ models/*
 
 # Text folder
 text/
+# Mac
+.DS_Store
