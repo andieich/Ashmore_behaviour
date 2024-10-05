@@ -48,10 +48,5 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-# Content of models folder
-models/*
-
-# Text folder
-text/
 # Mac
 .DS_Store
