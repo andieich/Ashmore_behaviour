@@ -117,7 +117,7 @@ Quickly plot results
 
 No impact
 
-#####Plot Results for year shark_in_video size_class
+##### Plot Results for year shark_in_video size_class
 
 Get Emmeans values
 
@@ -286,7 +286,7 @@ pp_check(fit_sec_total_L, ndraws = 100)
 bayes_R2(fit_sec_total_L)#0.45
 ```
 
-#####Plot Results for year shark_in_video size_class
+##### Plot Results for year shark_in_video size_class
 
 Get Emmeans values
 

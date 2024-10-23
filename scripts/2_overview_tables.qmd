@@ -64,7 +64,4 @@ data_overview %>%
   arrange(size_class, year, shark_in_video) %>% 
   # to html table to copy&paste
   htmlTable(rnames = FALSE)
-
-
-  
 ```
